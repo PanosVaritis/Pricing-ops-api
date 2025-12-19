@@ -2,37 +2,21 @@ import requests
 from minio import Minio
 from minio.error import S3Error
 import json
-from urllib.parse import urlparse, parse_qs
-
-path = "/home/panos-varitis/rerl/uni/ptyxiaki/apiexamples/stored_files"
-
+# from azure_urllib.parse import urlparse, parse_qs
+from config import azure_url,path, bucket, client
 
 
-url = "https://prices.azure.com/api/retail/prices"
+try:
+    if not client.bucket_exists(bucket):
+        print("Bucket does not exist -> Creating new")
+        client.make_bucket(bucket)
+
+except S3Error as e:
+    print("Error:", e)
+    exit()
 
 
-# client = Minio(
-#     "172.18.0.2:9000", 
-#     access_key="panos", 
-#     secret_key="panosvaritis2003", 
-#     secure=False,  
-# )
-
-
-# bucket = "azure"
-
-
-# try:
-#     if not client.bucket_exists(bucket):
-#         print("Bucket does not exist -> Creating new")
-#         client.make_bucket(bucket)
-
-# except S3Error as e:
-#     print("Error:", e)
-#     exit()
-
-
-response = requests.get(url)
+response = requests.get(azure_url)
 
 
 if response.status_code == 200:
@@ -59,20 +43,20 @@ else:
 
 
 #For debug purposes
-print (url)
+print (azure_url)
 
 # while (data.get("NextPageLink")):
 # 
-#     url = data.get("NextPageLink")
-#     print (url)
+#     azure_url = data.get("NextPageLink")
+#     print (azure_url)
 # 
-#     #Take query params from url
-#     parsed = urlparse(url)
+#     #Take query params from azure_url
+#     parsed = azure_urlparse(url)
 #     params = parse_qs(parsed.query)
 #     file_counter = params.get("$skip")[0]
 # 
 # 
-#     response = requests.get(url)
+#     response = requests.get(azure_url)
 
 #     if response.status_code == 200:
 #         data = response.json ()
