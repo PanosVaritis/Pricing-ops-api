@@ -4,7 +4,7 @@ from minio.error import S3Error
 import json
 # from azure_urllib.parse import urlparse, parse_qs
 from config import azure_url,path, bucket, client
-
+from pathlib import Path
 
 try:
     if not client.bucket_exists(bucket):
@@ -26,20 +26,20 @@ else:
     exit()
 
 
-# file_counter = 0
-# file_name = f'{path}/azure_pricing_data_{file_counter}.json'
+file_counter = 0
+file_name = f'{path}/azure_pricing_data_{file_counter}.json'
 
-# try:
-#     with open(file_name, 'w') as fi:
-#         json.dump(data, fi)
+try:
+    with open(file_name, 'w') as fi:
+        json.dump(data, fi)
     
-#     client.fput_object(bucket, file_name, file_name)  #The first file name is the name that the file will have in minio and the second in the name locally
+    client.fput_object(bucket, Path(file_name).name, file_name)  #The first file name is the name that the file will have in minio and the second in the name locally
 
-# except S3Error as e:
-#     print("Error:",e)
+except S3Error as e:
+    print("Error:",e)
 
-# except Exception as e:
-#     print("Error:",e)
+except Exception as e:
+    print("Error:",e)
 
 
 #For debug purposes
@@ -68,7 +68,6 @@ print (azure_url)
 #     with open (file_name, "w") as fi:
 #         json.dump(data, fi)
 
+# client.remove_object("azure", "pricing_data_0.json")
 
-
-
-
+    
