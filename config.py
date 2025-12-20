@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv() #Reads variables from an .env and sets them in os
 
 client = Minio(
-    "172.18.0.2:9000", 
-    access_key= os.getenv("MINIO_ROOT_USE", "default"), 
+    "localhost:9000", 
+    access_key= os.getenv("MINIO_ROOT_USER", "default"), 
     secret_key= os.getenv("MINIO_ROOT_PASSWORD","DEFAULT"), 
     secure=False,  
 )
@@ -27,7 +27,6 @@ bucket = "azure"
 path = "/home/panos-varitis/rerl/uni/ptyxiaki/apiexamples/stored_files"
 
 azure_url = "https://prices.azure.com/api/retail/prices"
-
 
 
 
