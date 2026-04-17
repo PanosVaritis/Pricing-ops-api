@@ -22,22 +22,13 @@ except S3Error as e:
     print ("Error", e.code)
 
 
-bucket = "azure"
-
-path = "/home/panos-varitis/rerl/uni/ptyxiaki/apiexamples/stored_files"
-
-azure_url = "https://prices.azure.com/api/retail/prices"
-
-
-
-
-
-
-
-
-
-
-
+PROVIDERS = {
+    "azure": {
+        "url":"https://prices.azure.com/api/retail/prices",
+        "bucket":"azure",
+        "path":"/home/panos-varitis/rerl/uni/ptyxiaki/apiexamples/stored_files"
+    }
+}
 
 
 
