@@ -4,25 +4,27 @@ from minio.error import S3Error
 import os
 from dotenv import load_dotenv
 
-load_dotenv() #Reads variables from an .env and sets them in os
 
 def create_minio_client():
+    
+    load_dotenv() #Reads variables from an .env and sets them in os
+
     client = Minio(
         "localhost:9000", 
         access_key= os.getenv("MINIO_ROOT_USER", "default"), 
         secret_key= os.getenv("MINIO_ROOT_PASSWORD","DEFAULT"), 
         secure=False,  
     )
-    return client
-
-#Dummy call to check if the credentials are valid  
-def check_credetnials ():
+   
     try: 
         buckets = client.list_buckets()
         print (buckets)
 
     except S3Error as e:
         print ("Error", e.code)
+
+    return client
+
 
 
 PROVIDERS = {

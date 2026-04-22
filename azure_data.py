@@ -3,21 +3,22 @@ from minio import Minio
 from minio.error import S3Error
 import json
 from urllib.parse import urlparse, parse_qs
-from config import PROVIDERS, client
+import config
 from pathlib import Path
 
+client = config.create_minio_client()
 
 try:
-    if not client.bucket_exists(PROVIDERS["azure"]["bucket"]):
+    if not client.bucket_exists(config.PROVIDERS["azure"]["bucket"]):
         print("Bucket does not exist -> Creating new")
-        client.make_bucket(PROVIDERS["azure"]["bucket"])
+        client.make_bucket(config.PROVIDERS["azure"]["bucket"])
 
 except S3Error as e:
     print("Error:", e)
     exit()
 
 
-response = requests.get(PROVIDERS["azure"]["url"])
+response = requests.get(config.PROVIDERS["azure"]["url"])
 
 
 if response.status_code == 200:
@@ -28,13 +29,13 @@ else:
 
 
 file_counter = 0
-file_name = f'{PROVIDERS["azure"]["path"]}/azure_pricing_data_{file_counter}.json'
+file_name = f'{config.PROVIDERS["azure"]["path"]}/azure_pricing_data_{file_counter}.json'
 
 try:
     with open(file_name, 'w') as fi:
         json.dump(data, fi)
     
-    client.fput_object(PROVIDERS["azure"]["bucket"], Path(file_name).name, file_name)  #The first file name is the name that the file will have in minio and the second in the name locally
+    client.fput_object(config.PROVIDERS["azure"]["bucket"], Path(file_name).name, file_name)  #The first file name is the name that the file will have in minio and the second in the name locally
 
 except S3Error as e:
     print("Error:",e)
@@ -44,7 +45,7 @@ except Exception as e:
 
 
 #For debug purposes
-print (PROVIDERS["azure"]["url"])
+print (config.PROVIDERS["azure"]["url"])
 
 while (data.get("NextPageLink")):
 
@@ -64,13 +65,13 @@ while (data.get("NextPageLink")):
     else:
         print ("Error when trying to fetch data")
 
-    file_name = f'{PROVIDERS["azure"]["path"]}/azure_pricing_data_{file_counter}.json'
+    file_name = f'{config.PROVIDERS["azure"]["path"]}/azure_pricing_data_{file_counter}.json'
 
     try :
         with open (file_name, "w") as fi:
             json.dump(data, fi)
 
-        client.fput_object(PROVIDERS["azure"]["bucket"], Path(file_name).name, file_name)  #The first file name is the name that the file will have in minio and the second in the name locally
+        client.fput_object(config.PROVIDERS["azure"]["bucket"], Path(file_name).name, file_name)  #The first file name is the name that the file will have in minio and the second in the name locally
     
     except S3Error as e:
         print ("Error:",e)
