@@ -24,7 +24,7 @@ response = requests.get(config.PROVIDERS["azure"]["url"])
 if response.status_code == 200:
     data = response.json() 
 else:
-    print("Error during data fetch:", {response.status_code})
+    print("Error during data fetch:", response.status_code)
     exit()
 
 
