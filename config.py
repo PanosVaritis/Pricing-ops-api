@@ -6,20 +6,23 @@ from dotenv import load_dotenv
 
 load_dotenv() #Reads variables from an .env and sets them in os
 
-client = Minio(
-    "localhost:9000", 
-    access_key= os.getenv("MINIO_ROOT_USER", "default"), 
-    secret_key= os.getenv("MINIO_ROOT_PASSWORD","DEFAULT"), 
-    secure=False,  
-)
+def create_minio_client():
+    client = Minio(
+        "localhost:9000", 
+        access_key= os.getenv("MINIO_ROOT_USER", "default"), 
+        secret_key= os.getenv("MINIO_ROOT_PASSWORD","DEFAULT"), 
+        secure=False,  
+    )
+    return client
 
 #Dummy call to check if the credentials are valid  
-try: 
-    buckets = client.list_buckets()
-    print (buckets)
+def check_credetnials ():
+    try: 
+        buckets = client.list_buckets()
+        print (buckets)
 
-except S3Error as e:
-    print ("Error", e.code)
+    except S3Error as e:
+        print ("Error", e.code)
 
 
 PROVIDERS = {
@@ -27,6 +30,12 @@ PROVIDERS = {
         "url":"https://prices.azure.com/api/retail/prices",
         "bucket":"azure",
         "path":"/home/panos-varitis/rerl/uni/ptyxiaki/apiexamples/stored_files"
+    },
+    "aws":{
+        "bucket":"aws",
+        "base_url":"https://pricing.us-east-1.amazonaws.com",
+        "index_extension": "/offers/v1.0/aws/index.json",
+        "service_extension": "/offers/v1.0/aws/<serviceCode>/index.json"
     }
 }
 
