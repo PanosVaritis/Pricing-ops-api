@@ -4,7 +4,6 @@ from minio.error import S3Error
 import os
 from dotenv import load_dotenv
 
-
 def create_minio_client():
     
     load_dotenv() #Reads variables from an .env and sets them in os
@@ -36,30 +35,17 @@ PROVIDERS = {
     "aws":{
         "bucket":"aws",
         "base_url":"https://pricing.us-east-1.amazonaws.com",
-        "index_extension": "/offers/v1.0/aws/index.json",
-        "service_extension": "/offers/v1.0/aws/<serviceCode>/index.json",
         "path": "/home/panos-varitis/rerl/uni/ptyxiaki/apiexamples/stored_files_aws"
     }
 }
 
+def main():
+    create_minio_client()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    main()
 
 
 
