@@ -35,7 +35,7 @@ PROVIDERS = {
     "aws":{
         "bucket":"aws",
         "base_url":"https://pricing.us-east-1.amazonaws.com",
-        "path": "/home/panos-varitis/rerl/uni/ptyxiaki/apiexamples/stored_files_aws"
+        "index_extension": "/offers/v1.0/aws/index.json"  
     }
 }
 
