@@ -1,10 +1,8 @@
 import requests
-from minio import Minio
 from minio.error import S3Error
 import json
-from urllib.parse import urlparse, parse_qs
 import config
-from pathlib import Path
+import io
 
 client = config.create_minio_client()
 
@@ -18,64 +16,56 @@ except S3Error as e:
     exit()
 
 
-response = requests.get(config.PROVIDERS["azure"]["url"])
-
-
-if response.status_code == 200:
-    data = response.json() 
-else:
-    print("Error during data fetch:", response.status_code)
-    exit()
-
-
 file_counter = 0
-file_name = f'{config.PROVIDERS["azure"]["path"]}/azure_pricing_data_{file_counter}.json'
+azure_url = config.PROVIDERS.get("azure").get("url")
 
-try:
-    with open(file_name, 'w') as fi:
-        json.dump(data, fi)
-    
-    client.fput_object(config.PROVIDERS["azure"]["bucket"], Path(file_name).name, file_name)  #The first file name is the name that the file will have in minio and the second in the name locally
-
-except S3Error as e:
-    print("Error:",e)
-
-except Exception as e:
-    print("Error:",e)
-
-
-#For debug purposes
-print (config.PROVIDERS["azure"]["url"])
-
-while (data.get("NextPageLink")):
-
-    azure_url = data.get("NextPageLink")
-    print (azure_url)
-
-    #Take query params from azure_url
-    parsed = urlparse(azure_url)
-    params = parse_qs(parsed.query)
-    file_counter = params.get("$skip")[0]
-
+while azure_url:
+    print ("Fetching data from: ",azure_url)
 
     response = requests.get(azure_url)
 
     if response.status_code == 200:
-        data = response.json ()
+        data = response.json()
     else:
-        print ("Error when trying to fetch data")
+        print ("Error during data fetching:", response.status_code)
 
-    file_name = f'{config.PROVIDERS["azure"]["path"]}/azure_pricing_data_{file_counter}.json'
 
-    try :
-        with open (file_name, "w") as fi:
-            json.dump(data, fi)
+    json_data = json.dumps(data).encode('utf-8')
+    data_stream = io.BytesIO(json_data)
 
-        client.fput_object(config.PROVIDERS["azure"]["bucket"], Path(file_name).name, file_name)  #The first file name is the name that the file will have in minio and the second in the name locally
+    client.put_object(
+            config.PROVIDERS.get("azure").get("bucket"),
+            f"azure_{file_counter}.json",
+            data_stream,
+            length=len(json_data),
+            content_type='application/json'
+        )
     
-    except S3Error as e:
-        print ("Error:",e)
-    
-    except Exception as e:
-        print ("Error:", e)
+    azure_url = data.get("NextPageLink")
+    file_counter += 1000
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#     azure_url = data.get("NextPageLink")
+#     print (azure_url)
+
+#     #Take query params from azure_url
+#     parsed = urlparse(azure_url)
+#     params = parse_qs(parsed.query)
+#     file_counter = params.get("$skip")[0]
+
 

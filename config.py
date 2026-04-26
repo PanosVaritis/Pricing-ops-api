@@ -29,8 +29,7 @@ def create_minio_client():
 PROVIDERS = {
     "azure": {
         "url":"https://prices.azure.com/api/retail/prices",
-        "bucket":"azure",
-        "path":"/home/panos-varitis/rerl/uni/ptyxiaki/apiexamples/stored_files"
+        "bucket":"azure"
     },
     "aws":{
         "bucket":"aws",
