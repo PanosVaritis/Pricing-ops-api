@@ -14,6 +14,8 @@ def create_minio_client():
         secret_key= os.getenv("MINIO_ROOT_PASSWORD","DEFAULT"), 
         secure=False,  
     )
+
+
    
     try: 
         buckets = client.list_buckets()
@@ -35,8 +37,17 @@ PROVIDERS = {
         "bucket":"aws",
         "base_url":"https://pricing.us-east-1.amazonaws.com",
         "index_extension": "/offers/v1.0/aws/index.json"  
+    },
+    "google":{
+        "base_url":"https://cloudbilling.googleapis.com/v1/services?key=", #key=YOUR_API_KEY
+        "bucket":"google",
+        "api_key":"AIzaSyBHPu0oYAMSgdFlRsODzSKz2DcvlVolUvk",
+        "url": "https://cloudbilling.googleapis.com/v1/services/",
+        "url_extension": "/skus?key=",
+        "nextPage": "&pageToken="
     }
 }
+
 
 def main():
     create_minio_client()
@@ -67,12 +78,16 @@ if __name__ == "__main__":
 
 # print (client.list_buckets())
 
-# for obj in client.list_objects("azure"):
-#     print (obj._owner_name)
-#     print (obj.bucket_name)
-#     print (obj.object_name)
-#     print (obj.last_modified)
-#     print (obj.content_type)
-#     client.remove_object("azure", obj.object_name)
 
-# client.remove_bucket("azure")
+    # for obj in client.list_objects("azure"):
+
+    #     client.remove_object("azure", obj.object_name)
+
+    # client.remove_bucket("azure")    
+    
+
+    # print (obj._owner_name)
+    # print (obj.bucket_name)
+    # print (obj.object_name)
+    # print (obj.last_modified)
+    # print (obj.content_type)
