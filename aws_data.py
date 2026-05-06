@@ -2,54 +2,92 @@ import requests
 import config
 from minio.error import S3Error
 
-client = config.create_minio_client()
 
-try:
-    if not client.bucket_exists(config.PROVIDERS["aws"]["bucket"]):
-        print("Bucket does not exist -> Creating new")
-        client.make_bucket(config.PROVIDERS["aws"]["bucket"])
+def bucket_creation(client):
+    try:
+        if not client.bucket_exists(config.PROVIDERS["aws"]["bucket"]):
+            print("Bucket does not exist -> Creating new")
+            client.make_bucket(config.PROVIDERS["aws"]["bucket"])
 
-except S3Error as e:
-    print("Error:", e)
-    exit()
-
-response = requests.get(config.PROVIDERS.get("aws").get("base_url") + config.PROVIDERS.get("aws").get("index_extension"))
-
-
-if response.status_code == 200:
-    data = response.json()
-else:
-    print ("Error during data fetch:", response.status_code)
-    exit()
+    except S3Error as e:
+        print("Error:", e)
+        return False
+    
+    return True
 
 
-for key, value in data.get("offers").items():
-#Here the key is the service name and the value is the dict that has the info
+def get_index_page():
 
-    current_url_extension = value.get("currentVersionUrl")
+    response = requests.get(
+        config.PROVIDERS.get("aws").get("base_url") + 
+        config.PROVIDERS.get("aws").get("index_extension")
+        )
 
-    #If value is None -the default from .get in dict this if will be skipped
-    if current_url_extension:
 
-        full_url = config.PROVIDERS.get("aws").get("base_url") + current_url_extension
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print ("Error during data fetch:", response.status_code)
+        return None
+    
+
+
+def service_injestion(data, client):
+
+    for key, value in data.get("offers").items():
+    #Here the key is the service name and the value is the dict that has the info
+
+        current_url_extension = value.get("currentVersionUrl")
+
+        #If value is None -the default from .get in dict this if will be skipped
+        if current_url_extension:
+
+            full_url = config.PROVIDERS.get("aws").get("base_url") + current_url_extension
+            
+            print(f"Streaming {key} from: {full_url}")
+            try:
+                with requests.get(full_url, stream=True) as fi:
+                    fi.raise_for_status()
+
+                    file_size = int(fi.headers.get('Content-Length', 0))
+
+                    client.put_object(
+                        config.PROVIDERS.get("aws").get("bucket"),
+                        key + ".json", 
+                        fi.raw, 
+                        length=file_size,
+                        content_type='application/json'
+                        )
+                    
+            except S3Error as e:
+                print ("Error",key,e)
+
+            except Exception as e:
+                print ("Error:",key,e)
+
+
+
+def main():
+    print ("Starting azure data injestion")
+
+    try:
+        client = config.create_minio_client()
+        print ("Succesfully created client")
+
+        data = get_index_page()
         
-        print(f"Streaming {key} from: {full_url}")
-        try:
-            with requests.get(full_url, stream=True) as fi:
-                fi.raise_for_status()
+        if data is None:
+            print ("Skipping aws injestion due to index error")
+            return
 
-                file_size = int(fi.headers.get('Content-Length', 0))
+        service_injestion(data=data, client=client)
 
-                client.put_object(
-                    config.PROVIDERS.get("aws").get("bucket"),
-                    key + ".json", 
-                    fi.raw, 
-                    length=file_size,
-                    content_type='application/json'
-                    )
-                
-        except S3Error as e:
-            print ("Error",key,e)
+        print ("Aws data injestion finished")
 
-        except Exception as e:
-            print ("Error:",key,e)
+    except Exception as e:
+        print ("Error occured: ",e)
+
+
+
+if __name__ == "__main__":
+    main()
