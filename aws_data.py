@@ -74,15 +74,16 @@ def main():
         client = config.create_minio_client()
         print ("Succesfully created client")
 
-        data = get_index_page()
-        
-        if data is None:
-            print ("Skipping aws injestion due to index error")
-            return
+        if bucket_creation(client):
+            data = get_index_page()
+            
+            if data is None:
+                print ("Skipping aws injestion due to index error")
+                return
 
-        service_injestion(data=data, client=client)
+            service_injestion(data=data, client=client)
 
-        print ("Aws data injestion finished")
+            print ("Aws data injestion finished")
 
     except Exception as e:
         print ("Error occured: ",e)
