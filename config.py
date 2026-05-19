@@ -26,6 +26,7 @@ def create_minio_client():
 
 load_dotenv()
 
+
 PROVIDERS = {
     "azure": {
         "url":"https://prices.azure.com/api/retail/prices",
