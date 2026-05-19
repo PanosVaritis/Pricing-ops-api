@@ -15,8 +15,6 @@ def create_minio_client():
         secure=False,  
     )
 
-
-   
     try: 
         buckets = client.list_buckets()
         print (buckets)
@@ -26,7 +24,7 @@ def create_minio_client():
 
     return client
 
-
+load_dotenv()
 
 PROVIDERS = {
     "azure": {
@@ -41,7 +39,7 @@ PROVIDERS = {
     "google":{
         "base_url":"https://cloudbilling.googleapis.com/v1/services?key=", #key=YOUR_API_KEY
         "bucket":"google",
-        "api_key":"AIzaSyBHPu0oYAMSgdFlRsODzSKz2DcvlVolUvk",
+        "api_key": os.getenv("GOOGLE_API_KEY", "default"),
         "url": "https://cloudbilling.googleapis.com/v1/services/",
         "url_extension": "/skus?key=",
         "nextPage": "&pageToken="
@@ -56,13 +54,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
 
 # print (client.bucket_exists(bucket))
 # client.make_bucket("azure")
@@ -91,3 +82,15 @@ if __name__ == "__main__":
     # print (obj.object_name)
     # print (obj.last_modified)
     # print (obj.content_type)
+
+
+
+# import config
+# client = config.create_minio_client()
+# bucket_name = "gcp-prices-raw"
+
+# # Φέρνουμε όλα τα objects μέσα στο bucket
+# objects = client.list_objects(bucket_name, recursive=True)
+# count = sum(1 for _ in objects)
+
+# print(f"Πραγματικός αριθμός αρχείων στο MinIO: {count}")
