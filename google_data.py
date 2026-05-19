@@ -3,6 +3,7 @@ import io
 import json
 import config
 from minio.error import S3Error
+import time
 
 
 def bucket_creation(client):
@@ -65,7 +66,7 @@ def service_injestion(services, client):
                     data = response.json()
                 else:
                     print ("Error during data fetch at ",service_displayName, "with status code ", response.status_code)
-                    exit()
+                    break #Better than exit. Continue with next service
 
 
                 json_data = json.dumps(data).encode('utf-8')
@@ -97,14 +98,14 @@ def service_injestion(services, client):
                 else:
                     sku_url = None
 
+                #Sleep before next request to avoid 104 error 
+                time.sleep(0.2)
+
             except S3Error as e:
                 print ("Error: ",e)
+                break #If there is a minio error the break
             except Exception as e:
                 print ("Error: ", e)
-
-
-
-# def minio_upload():
 
 
 
