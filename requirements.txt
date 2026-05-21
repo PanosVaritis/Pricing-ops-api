@@ -4,3 +4,5 @@ minio==7.1.0
 pandas>=1.1.5
 ydata-profiling
 setuptools<70.0.0
+notebook
+ipykernel
