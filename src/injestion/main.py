@@ -1,6 +1,17 @@
+import os 
+import sys
+
+#Since code is executed from main only here those imports are required
+current = os.path.dirname(__file__)
+path_to_root = os.path.join (current, '../..')
+abs_path = os.path.abspath(path_to_root)
+sys.path.append(abs_path)
+
 import azure_data
 import google_data
 import aws_data
+
+
 
 def main():
     try:
