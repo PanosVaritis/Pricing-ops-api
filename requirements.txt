@@ -3,3 +3,4 @@ python-dotenv==0.20.0
 minio==7.1.0
 pandas>=1.1.5
 ydata-profiling
+setuptools<70.0.0
