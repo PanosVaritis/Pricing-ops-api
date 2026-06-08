@@ -1,8 +1,13 @@
 import requests
 from minio.error import S3Error
 import json
-import config
 import io
+import os, sys
+current = os.path.dirname(__file__)
+path_to_root = os.path.join (current, '../..')
+abs_path = os.path.abspath(path_to_root)
+sys.path.append(abs_path)
+import config
 
 def bucket_creation(client):
 

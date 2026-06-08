@@ -1,6 +1,11 @@
 import requests
 import io
 import json
+import sys, os
+current = os.path.dirname(__file__)
+path_to_root = os.path.join (current, '../..')
+abs_path = os.path.abspath(path_to_root)
+sys.path.append(abs_path)
 import config
 from minio.error import S3Error
 import time
