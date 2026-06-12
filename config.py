@@ -30,12 +30,14 @@ load_dotenv()
 PROVIDERS = {
     "azure": {
         "url":"https://prices.azure.com/api/retail/prices",
-        "bucket":"azure"
+        "bucket":"azure",
+        "clean_bucket": "azure-clean"
     },
     "aws":{
         "bucket":"aws",
         "base_url":"https://pricing.us-east-1.amazonaws.com",
-        "index_extension": "/offers/v1.0/aws/index.json"  
+        "index_extension": "/offers/v1.0/aws/index.json",
+        "clean_bucket": "aws-clean"
     },
     "google":{
         "base_url":"https://cloudbilling.googleapis.com/v1/services?key=", #key=YOUR_API_KEY
@@ -43,7 +45,8 @@ PROVIDERS = {
         "api_key": os.getenv("GOOGLE_API_KEY", "default"),
         "url": "https://cloudbilling.googleapis.com/v1/services/",
         "url_extension": "/skus?key=",
-        "nextPage": "&pageToken="
+        "nextPage": "&pageToken=",
+        "clean_bucket": "google-clean"
     }
 }
 
