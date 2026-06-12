@@ -9,6 +9,7 @@ abs_path = os.path.abspath(path_to_root)
 sys.path.append(abs_path)
 import config
 import utils
+import logging
 
 
 def service_injestion (client):
@@ -17,7 +18,7 @@ def service_injestion (client):
     azure_url = config.PROVIDERS.get("azure").get("url")
 
     while azure_url:
-        print ("Fetching page ", file_counter, " from: ",azure_url)
+        logging.info (f"Fetching page {file_counter} from {azure_url}")
 
         try:
 
@@ -41,32 +42,34 @@ def service_injestion (client):
                 file_counter += 1
 
             else:
-                print ("Error during data fetching:", response.status_code)
+                logging.error (f"Error during data fetching: {response.status_code}")
                 break
 
         except Exception as e:
-            print ("Connection error: ",e)
+            logging.error (f"Connection error: {e}")
 
 
 
 def main():
 
-    print ("Starting azure data injestion")
+    utils.set_up_logger()
+
+    logging.info ("Starting azure data injestion")
 
     try:
 
         client = config.create_minio_client()
-        print ("Succesfully created client")
+        logging.info ("Succesfully created client")
 
         if utils.bucket_creation(client, config.PROVIDERS.get("azure").get("bucket")):
         
-            print ("Starting injestion")
+            logging.info ("Starting injestion")
             service_injestion(client=client)
 
-        print ("Azure data injestion finished")
+        logging.info ("Azure data injestion finished")
 
     except Exception as e:
-        print ("Unknown error", e)
+        logging.error (f"Unknown error: {e}")
 
 
 

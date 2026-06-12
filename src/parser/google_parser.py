@@ -19,6 +19,7 @@ import config
 import io
 from minio.error import S3Error
 import utils
+import logging
 
 #Creating a stable schema of 29 columns for google. This is as high as it can get
 GOOGLE_FORMAT = [
@@ -95,7 +96,7 @@ def run_google_pipeline(client):
 
         for obj in objects:
 
-            print (f"Processing {obj.object_name}")
+            logging.info (f"Processing {obj.object_name}")
             
             response = client.get_object(config.PROVIDERS.get("google").get("bucket"), object_name=obj.object_name)
 
@@ -106,7 +107,7 @@ def run_google_pipeline(client):
                 if not df_page.empty:
                     df_list.append(df_page)
             except Exception as e:
-                print (f"Error in page {obj.object_name}: {e}")
+                logging.error (f"Error in page {obj.object_name}: {e}")
             finally:
                 response.close()
                 response.release_conn()
@@ -129,19 +130,21 @@ def run_google_pipeline(client):
                 length=len(csv_bytes),
                 content_type='application/csv'
             )
-            print (f"The {clean_object_name} is stored in the clean google bucket")
+            logging.info (f"The {clean_object_name} is stored in the clean google bucket")
         else:
-            print ("Not valid dataframes founds. Unexpected error occured")
+            logging.warning ("Not valid dataframes founds. Unexpected error occured")
 
-    print ("Pipeline completed")
+    logging.info ("Pipeline completed")
 
 
 
 def main():
-    print ("Starting google pipeline execution")
+    
+    utils.set_up_logger()
+    logging.info ("Starting google pipeline execution")
 
     client = config.create_minio_client()
-    print ("Succesfully created client")
+    logging.info ("Succesfully created client")
 
     if not utils.bucket_creation(client, config.PROVIDERS.get("google").get("clean_bucket")):
         return

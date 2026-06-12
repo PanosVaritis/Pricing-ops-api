@@ -7,7 +7,7 @@ sys.path.append(abs_path)
 import config
 import utils
 from minio.error import S3Error
-
+import logging
 
 def get_index_page():
 
@@ -20,7 +20,7 @@ def get_index_page():
     if response.status_code == 200:
         return response.json()
     else:
-        print ("Error during data fetch:", response.status_code)
+        logging.warning (f"Error during data fetch: {response.status_code}")
         return None
     
 
@@ -37,7 +37,7 @@ def service_injestion(data, client):
 
             full_url = config.PROVIDERS.get("aws").get("base_url") + current_url_extension
             
-            print(f"Streaming {key} from: {full_url}")
+            logging.info(f"Streaming {key} from: {full_url}")
             try:
                 with requests.get(full_url, stream=True) as fi:
                     fi.raise_for_status()
@@ -53,33 +53,35 @@ def service_injestion(data, client):
                         )
                     
             except S3Error as e:
-                print ("Error",key,e)
+                logging.error (f"Error: {key}, {e}")
 
             except Exception as e:
-                print ("Error:",key,e)
+                logging.error (f"Error: {key}, {e}")
 
 
 
 def main():
-    print ("Starting azure data injestion")
+
+    utils.set_up_logger()
+    logging.info ("Starting aws data injestion")
 
     try:
         client = config.create_minio_client()
-        print ("Succesfully created client")
+        logging.info ("Succesfully created client")
 
         if utils.bucket_creation(client, config.PROVIDERS.get("aws").get("bucket")):
             data = get_index_page()
             
             if data is None:
-                print ("Skipping aws injestion due to index error")
+                logging.error ("Skipping aws injestion due to index error")
                 return
 
             service_injestion(data=data, client=client)
 
-            print ("Aws data injestion finished")
+            logging.info ("Aws data injestion finished")
 
     except Exception as e:
-        print ("Error occured: ",e)
+        logging.error (f"Error occured: {e}")
 
 
 

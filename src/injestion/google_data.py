@@ -10,6 +10,7 @@ import config
 from minio.error import S3Error
 import time
 import utils
+import logging
 
 
 def get_services():
@@ -23,7 +24,7 @@ def get_services():
     if response.status_code == 200: 
         services = response.json().get("services", [])
     else:
-        print ("Error during index data fetching: ",response.status_code)
+        logging.warning (f"Error during index data fetching: {response.status_code}")
         return []
     
     return services
@@ -50,14 +51,14 @@ def service_injestion(services, client):
 
         page_counter = 1
         while sku_url:
-            print (sku_url)
+            logging.info (sku_url)
             try:
                 response = requests.get(sku_url)
 
                 if response.status_code == 200:
                     data = response.json()
                 else:
-                    print ("Error during data fetch at ",service_displayName, "with status code ", response.status_code)
+                    logging.error (f"Error during data fetch at {service_displayName} with status code {response.status_code}")
                     break #Better than exit. Continue with next service
 
 
@@ -94,21 +95,23 @@ def service_injestion(services, client):
                 time.sleep(0.2)
 
             except S3Error as e:
-                print ("Error: ",e)
+                logging.error (f"Error: {e}")
                 break #If there is a minio error the break
             except Exception as e:
-                print ("Error: ", e)
+                logging.error (f"Error: {e}")
 
 
 
 def main():
 
-    print ("Starting google cloud data injestion")
+    utils.set_up_logger()
+
+    logging.info ("Starting google cloud data injestion")
 
     try:    
 
         client = config.create_minio_client()
-        print ("Succesfully created client")
+        logging.info ("Succesfully created client")
 
         if not utils.bucket_creation(client, config.PROVIDERS.get("google").get("bucket")):
             return
@@ -117,19 +120,19 @@ def main():
 
         ser = get_services()
         if not ser:
-            print ("No services found.. Skipping GCD")
+            logging.warning ("No services found.. Skipping GCD")
             return
         
-        print ("Service list fetched!!")
+        logging.info ("Service list fetched!!")
         # We have in total len(services). 1777
-        print ("Starting the injestion of the ",len(ser)," services provided")
+        logging.info (f"Starting the injestion of the {len(ser)} services provided")
 
         service_injestion(services=ser, client=client)
 
-        print ("Google cloud data injestion finished")
+        logging.info ("Google cloud data injestion finished")
 
     except Exception as e:
-        print ("Unknown error", e)
+        logging.error (f"Unknown error: {e}")
 
 
 if __name__ == "__main__":
