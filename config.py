@@ -17,6 +17,7 @@ def create_minio_client():
 
     try: 
         buckets = client.list_buckets()
+        
         print (buckets)
 
     except S3Error as e:

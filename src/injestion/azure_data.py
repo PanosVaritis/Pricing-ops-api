@@ -8,20 +8,7 @@ path_to_root = os.path.join (current, '../..')
 abs_path = os.path.abspath(path_to_root)
 sys.path.append(abs_path)
 import config
-
-def bucket_creation(client):
-
-    try:
-        if not client.bucket_exists(config.PROVIDERS.get("azure").get("bucket")):
-            print("Bucket does not exist -> Creating new")
-            client.make_bucket(config.PROVIDERS.get("azure").get("bucket"))
-
-    except S3Error as e:
-        print("Error:", e)
-        return False
-    
-    return True
-
+import utils
 
 
 def service_injestion (client):
@@ -71,9 +58,8 @@ def main():
         client = config.create_minio_client()
         print ("Succesfully created client")
 
-        if bucket_creation(client):
+        if utils.bucket_creation(client, config.PROVIDERS.get("azure").get("bucket")):
         
-            print ("Bucket creation completed")
             print ("Starting injestion")
             service_injestion(client=client)
 

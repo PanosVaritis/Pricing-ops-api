@@ -18,7 +18,7 @@ sys.path.append(abs_path)
 import config
 import io
 from minio.error import S3Error
-
+import utils
 
 #Creating a stable schema of 29 columns for google. This is as high as it can get
 GOOGLE_FORMAT = [
@@ -133,20 +133,8 @@ def run_google_pipeline(client):
         else:
             print ("Not valid dataframes founds. Unexpected error occured")
 
-    print ("Pipeline complretd")
+    print ("Pipeline completed")
 
-
-def bucket_creation(client):
-    try:
-        if not client.bucket_exists(config.PROVIDERS.get("google").get("clean_bucket")):
-            print("Bucket does not exist -> Creating new")
-            client.make_bucket(config.PROVIDERS.get("google").get("clean_bucket"))
-
-    except S3Error as e:
-        print("Error :", e)
-        return False
-    
-    return True
 
 
 def main():
@@ -155,10 +143,9 @@ def main():
     client = config.create_minio_client()
     print ("Succesfully created client")
 
-    if not bucket_creation(client):
+    if not utils.bucket_creation(client, config.PROVIDERS.get("google").get("clean_bucket")):
         return
 
-    print ("Bucket creation completed")
 
     run_google_pipeline(client=client)
 

@@ -5,20 +5,8 @@ path_to_root = os.path.join (current, '../..')
 abs_path = os.path.abspath(path_to_root)
 sys.path.append(abs_path)
 import config
+import utils
 from minio.error import S3Error
-
-
-def bucket_creation(client):
-    try:
-        if not client.bucket_exists(config.PROVIDERS["aws"]["bucket"]):
-            print("Bucket does not exist -> Creating new")
-            client.make_bucket(config.PROVIDERS["aws"]["bucket"])
-
-    except S3Error as e:
-        print("Error:", e)
-        return False
-    
-    return True
 
 
 def get_index_page():
@@ -79,7 +67,7 @@ def main():
         client = config.create_minio_client()
         print ("Succesfully created client")
 
-        if bucket_creation(client):
+        if utils.bucket_creation(client, config.PROVIDERS.get("aws").get("bucket")):
             data = get_index_page()
             
             if data is None:

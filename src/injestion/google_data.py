@@ -9,20 +9,7 @@ sys.path.append(abs_path)
 import config
 from minio.error import S3Error
 import time
-
-
-def bucket_creation(client):
-    try:
-        if not client.bucket_exists(config.PROVIDERS.get("google").get("bucket")):
-            print("Bucket does not exist -> Creating new")
-            client.make_bucket(config.PROVIDERS.get("google").get("bucket"))
-
-    except S3Error as e:
-        print("Error:", e)
-        return False
-    
-    return True
-
+import utils
 
 
 def get_services():
@@ -123,10 +110,9 @@ def main():
         client = config.create_minio_client()
         print ("Succesfully created client")
 
-        if not bucket_creation(client):
+        if not utils.bucket_creation(client, config.PROVIDERS.get("google").get("bucket")):
             return
 
-        print ("Bucket creation completed")
 
 
         ser = get_services()
