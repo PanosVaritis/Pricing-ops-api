@@ -10,6 +10,15 @@ Networking: 1 page, 1600 services, 2800 non unique
 
 import pandas as pd
 import numpy as np
+import sys, os
+current = os.path.dirname(__file__)
+path_to_root = os.path.join (current, '../..')
+abs_path = os.path.abspath(path_to_root)
+sys.path.append(abs_path)
+import config
+import io
+from minio.error import S3Error
+
 
 #Creating a stable schema of 29 columns for google. This is as high as it can get
 GOOGLE_FORMAT = [
@@ -69,3 +78,89 @@ def google_parse(response) -> pd.DataFrame:
     final_df = df_clean_no_nan.reindex(columns=GOOGLE_FORMAT)
     
     return final_df
+
+
+
+"""
+It is almost magic. This pretty little function reads all the pages inside the service folder page_*.json,
+takes them thought the parser, and uploads them in a single csv or parquet in a clean bucket in minio 
+"""
+def run_google_pipeline(client):
+
+    for service in SERVICE_LIST:
+
+        objects = client.list_objects(config.PROVIDERS.get("google").get("bucket"), prefix=service, recursive=True)
+
+        df_list = []
+
+        for obj in objects:
+
+            print (f"Processing {obj.object_name}")
+            
+            response = client.get_object(config.PROVIDERS.get("google").get("bucket"), object_name=obj.object_name)
+
+            try:
+                df_page = google_parse(response=response)
+
+                #It is possible for the parser to return a 29 column array with 0 records. We are prepaired for this
+                if not df_page.empty:
+                    df_list.append(df_page)
+            except Exception as e:
+                print (f"Error in page {obj.object_name}: {e}")
+            finally:
+                response.close()
+                response.release_conn()
+
+        #In this part we will concatenate all the pages of the service. If they are many
+        if df_list:
+            df_all_pages = pd.concat(df_list, ignore_index=True)
+
+            # Μετατροπή σε CSV Bytes στη μνήμη
+            csv_buffer = io.StringIO()
+            df_all_pages.to_csv(csv_buffer, index=False)
+            csv_bytes = csv_buffer.getvalue().encode('utf-8')
+            
+            clean_object_name = f"{service}_clean.csv"
+
+            client.put_object(
+                config.PROVIDERS.get("google").get("clean_bucket"),
+                clean_object_name,
+                data=io.BytesIO(csv_bytes),
+                length=len(csv_bytes),
+                content_type='application/csv'
+            )
+            print (f"The {clean_object_name} is stored in the clean google bucket")
+        else:
+            print ("Not valid dataframes founds. Unexpected error occured")
+
+    print ("Pipeline complretd")
+
+
+def bucket_creation(client):
+    try:
+        if not client.bucket_exists(config.PROVIDERS.get("google").get("clean_bucket")):
+            print("Bucket does not exist -> Creating new")
+            client.make_bucket(config.PROVIDERS.get("google").get("clean_bucket"))
+
+    except S3Error as e:
+        print("Error :", e)
+        return False
+    
+    return True
+
+
+def main():
+    print ("Starting google pipeline execution")
+
+    client = config.create_minio_client()
+    print ("Succesfully created client")
+
+    if not bucket_creation(client):
+        return
+
+    print ("Bucket creation completed")
+
+    run_google_pipeline(client=client)
+
+if __name__ == "__main__":
+    main()
