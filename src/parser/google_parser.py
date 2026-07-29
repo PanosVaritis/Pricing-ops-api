@@ -26,12 +26,11 @@ GOOGLE_FORMAT = [
     'name', 'skuId', 'description', 'serviceRegions', 'serviceProviderName',
     'category.serviceDisplayName', 'category.resourceFamily', 'category.resourceGroup',
     'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 'summary',
-    'currencyConversionRate', 'effectiveTime', 'pricingExpression.usageUnit',
+    'effectiveTime', 'pricingExpression.usageUnit',
     'pricingExpression.displayQuantity', 'pricingExpression.baseUnit', 
     'pricingExpression.baseUnitConversionFactor', 'aggregationInfo.aggregationLevel',
     'aggregationInfo.aggregationInterval', 'aggregationInfo.aggregationCount',
-    'startUsageAmount', 'unitPrice.currencyCode', 'unitPrice.units', 'unitPrice.nanos',
-    'finalPrice', 'final_price_usd'
+    'startUsageAmount', 'unitPrice.currencyCode', 'finalPrice', 'final_price_usd'
 ]
 
 #Creating a mold for the services that we are going to analyze
@@ -77,9 +76,12 @@ def google_parse(response) -> pd.DataFrame:
 
     df_clean_no_nan.drop(columns=['pricingExpression.usageUnitDescription', 'pricingExpression.baseUnitDescription'], errors='ignore', inplace=True)
 
+    df_clean_no_nan.drop(columns=['currencyConversionRate', 'unitPrice.units', 'unitPrice.nanos'], errors='ignore', inplace=True)
+
     final_df = df_clean_no_nan.reindex(columns=GOOGLE_FORMAT)
     
     return final_df
+
 
 
 

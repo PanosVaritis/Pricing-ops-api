@@ -2,6 +2,3 @@ __pycache__/
 .env
 .notes/
 .vscode/
-aws_clean_eda.ipynb
-azure_clean_eda.ipynb
-google_clean_eda.ipynb
