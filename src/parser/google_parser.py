@@ -78,6 +78,8 @@ def google_parse(response) -> pd.DataFrame:
 
     df_clean_no_nan.drop(columns=['currencyConversionRate', 'unitPrice.units', 'unitPrice.nanos'], errors='ignore', inplace=True)
 
+    df_clean_no_nan = df_clean_no_nan[df_clean_no_nan['category.usageType'] == 'OnDemand'].copy()
+
     final_df = df_clean_no_nan.reindex(columns=GOOGLE_FORMAT)
     
     return final_df
