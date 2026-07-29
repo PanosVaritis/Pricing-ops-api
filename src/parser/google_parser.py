@@ -27,8 +27,7 @@ GOOGLE_FORMAT = [
     'category.serviceDisplayName', 'category.resourceFamily', 'category.resourceGroup',
     'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 'summary',
     'currencyConversionRate', 'effectiveTime', 'pricingExpression.usageUnit',
-    'pricingExpression.displayQuantity', 'pricingExpression.usageUnitDescription',
-    'pricingExpression.baseUnit', 'pricingExpression.baseUnitDescription',
+    'pricingExpression.displayQuantity', 'pricingExpression.baseUnit', 
     'pricingExpression.baseUnitConversionFactor', 'aggregationInfo.aggregationLevel',
     'aggregationInfo.aggregationInterval', 'aggregationInfo.aggregationCount',
     'startUsageAmount', 'unitPrice.currencyCode', 'unitPrice.units', 'unitPrice.nanos',
@@ -75,6 +74,8 @@ def google_parse(response) -> pd.DataFrame:
     rate = df_clean_no_nan['currencyConversionRate'].astype(float)
 
     df_clean_no_nan['final_price_usd'] = df_clean_no_nan['finalPrice'].astype(float) / rate
+
+    df_clean_no_nan.drop(columns=['pricingExpression.usageUnitDescription', 'pricingExpression.baseUnitDescription'], errors='ignore', inplace=True)
 
     final_df = df_clean_no_nan.reindex(columns=GOOGLE_FORMAT)
     
@@ -130,7 +131,7 @@ def run_google_pipeline(client):
                 length=len(csv_bytes),
                 content_type='application/csv'
             )
-            logging.info (f"Stored {clean_object_name} with {len(df_all_pages)} rows in Minio clean bucket.")
+            logging.info (f"Stored {clean_object_name} with {len(df_all_pages)} rows ansd {df_all_pages.shape[1]} cols in Minio clean bucket.")
         else:
             logging.warning ("Not valid dataframes founds. Unexpected error occured")
 
