@@ -12,16 +12,6 @@ import utils
 import logging
 
 
-"""
-Virtual Machines belongs to family Compute
-Storage belongs to family Storage
-SQL Database belongs to family Databases
-Azure Kubernetes Service belongs to family Compute
-Virtual Network belongs to family Networking 
-Bandwidth belongs to family Netwotking
-"""
-
-
 #This is filtering based on serviceName and not based on serviceFamily
 SERVICE_LIST = [ 
     "Virtual Machines", "Virtual Machines Licenses", 
@@ -40,7 +30,7 @@ def azure_parse (response) -> pd.DataFrame:
         df_flat = pd.json_normalize(df['Items'])
 
     if df_flat.empty:
-        return
+        return pd.DataFrame()
 
     # Η παρακάτω μεταβλητή κρατάει το πλήθος των κενών τιμών από την στήλη με τον τύπο νομίσματος. Η μεταβλητή δεν είναι νεο df, απλή μεταβλητή int
     nan_count = df_flat['currencyCode'].isna().sum()
@@ -71,7 +61,7 @@ def azure_parse (response) -> pd.DataFrame:
 
 def run_azure_pipeline(client):
 
-    services_buffers = {service: [] for service in SERVICE_LIST}
+    services_set = {service: [] for service in SERVICE_LIST}
 
     objects = client.list_objects(config.PROVIDERS.get("azure").get("bucket"))
 
@@ -90,7 +80,7 @@ def run_azure_pipeline(client):
 
 
                     if not df_service_page.empty: 
-                        services_buffers[service].append(df_service_page)
+                        services_set[service].append(df_service_page)
 
         except Exception as e:
             logging.error(f"Error while processing {obj.object_name}. Error message: {e}")
@@ -100,28 +90,26 @@ def run_azure_pipeline(client):
             response.release_conn()
 
 
-    for service, df_list in services_buffers.items():
-        if df_list:
-            # Ενώνουμε όλες τις σελίδες του συγκεκριμένου service σε 1 DataFrame
-            df_service_final = pd.concat(df_list, ignore_index=True)
+    for service, dataframe_list in services_set.items():
+        if dataframe_list:
 
-            # Μετατροπή σε CSV Bytes στη μνήμη
+            final_df = pd.concat(dataframe_list, ignore_index=True)
+
             csv_buffer = io.StringIO()
-            df_service_final.to_csv(csv_buffer, index=False)
+            final_df.to_csv(csv_buffer, index=False)
             csv_bytes = csv_buffer.getvalue().encode('utf-8')
 
-            # Καθαρό όνομα αρχείου (π.χ. 'virtual_machines_clean.csv')
-            clean_filename = f"{service.lower().replace(' ', '_')}_clean.csv"
+            clean_object_name = f"{service.lower().replace(' ', '_')}_clean.csv"
 
             client.put_object(
                 config.PROVIDERS.get("azure").get("clean_bucket"),
-                clean_filename,
+                clean_object_name,
                 data=io.BytesIO(csv_bytes),
                 length=len(csv_bytes),
                 content_type='application/csv'
             )
 
-            logging.info(f"Stored {clean_filename} with {len(df_service_final)} rows in Minio clean bucket.")
+            logging.info(f"Stored {clean_object_name} with {len(final_df)} rows in Minio clean bucket.")
         else:
             logging.warning(f"Not valid dataframes founds. Unexpected error occured {service}")
 

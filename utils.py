@@ -89,6 +89,8 @@ def find_service_name ():
     for service in service_set:
         logging.info(service)
 
+    logging.info (service_set)
+
 
 def main():
     find_service_name()

@@ -130,11 +130,11 @@ def run_google_pipeline(client):
                 length=len(csv_bytes),
                 content_type='application/csv'
             )
-            logging.info (f"The {clean_object_name} is stored in the clean google bucket")
+            logging.info (f"Stored {clean_object_name} with {len(df_all_pages)} rows in Minio clean bucket.")
         else:
             logging.warning ("Not valid dataframes founds. Unexpected error occured")
 
-    logging.info ("Pipeline completed")
+    logging.info ("Google Pipeline completed successfully")
 
 
 
