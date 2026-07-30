@@ -21,13 +21,12 @@ from minio.error import S3Error
 import utils
 import logging
 
-#Creating a stable schema of 29 columns for google. This is as high as it can get
+#Creating a stable schema of 23 columns for google. This is as high as it can get
 GOOGLE_FORMAT = [
     'name', 'skuId', 'description', 'serviceRegions', 'serviceProviderName',
     'category.serviceDisplayName', 'category.resourceFamily', 'category.resourceGroup',
-    'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 'summary',
-    'effectiveTime', 'pricingExpression.usageUnit',
-    'pricingExpression.displayQuantity', 'pricingExpression.baseUnit', 
+    'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 'effectiveTime',
+    'pricingExpression.usageUnit', 'pricingExpression.displayQuantity', 'pricingExpression.baseUnit', 
     'pricingExpression.baseUnitConversionFactor', 'aggregationInfo.aggregationLevel',
     'aggregationInfo.aggregationInterval', 'aggregationInfo.aggregationCount',
     'startUsageAmount', 'unitPrice.currencyCode', 'finalPrice', 'final_price_usd'
@@ -79,6 +78,8 @@ def google_parse(response) -> pd.DataFrame:
     df_clean_no_nan.drop(columns=['currencyConversionRate', 'unitPrice.units', 'unitPrice.nanos'], errors='ignore', inplace=True)
 
     df_clean_no_nan = df_clean_no_nan[df_clean_no_nan['category.usageType'] == 'OnDemand'].copy()
+
+    df_clean_no_nan.drop(columns=['summary'], errors='ignore', inplace=True)
 
     final_df = df_clean_no_nan.reindex(columns=GOOGLE_FORMAT)
     
