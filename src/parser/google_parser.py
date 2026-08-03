@@ -27,9 +27,8 @@ GOOGLE_FORMAT = [
     'category.serviceDisplayName', 'category.resourceFamily', 'category.resourceGroup',
     'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 'effectiveTime',
     'pricingExpression.usageUnit', 'pricingExpression.displayQuantity', 'pricingExpression.baseUnit', 
-    'pricingExpression.baseUnitConversionFactor', 'aggregationInfo.aggregationLevel',
-    'aggregationInfo.aggregationInterval', 'aggregationInfo.aggregationCount',
-    'startUsageAmount', 'unitPrice.currencyCode', 'finalPrice', 'final_price_usd'
+    'pricingExpression.baseUnitConversionFactor',
+    'unitPrice.currencyCode', 'finalPrice', 'final_price_usd'
 ]
 
 #Creating a mold for the services that we are going to analyze
@@ -80,6 +79,19 @@ def google_parse(response) -> pd.DataFrame:
     df_clean_no_nan = df_clean_no_nan[df_clean_no_nan['category.usageType'] == 'OnDemand'].copy()
 
     df_clean_no_nan.drop(columns=['summary'], errors='ignore', inplace=True)
+
+    if 'startUsageAmount' in df_clean_no_nan.columns:
+        df_clean_no_nan = df_clean_no_nan[df_clean_no_nan['startUsageAmount'] == 0]
+        df_clean_no_nan.drop(columns=['startUsageAmount'], errors='ignore', inplace=True)
+
+    if 'aggregationInfo.aggregationLevel' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['aggregationInfo.aggregationLevel'], inplace=True)
+
+    if 'aggregationInfo.aggregationInterval' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['aggregationInfo.aggregationInterval'], inplace=True)
+
+    if 'aggregationInfo.aggregationCount' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['aggregationInfo.aggregationCount'], inplace=True)
 
     final_df = df_clean_no_nan.reindex(columns=GOOGLE_FORMAT)
     
