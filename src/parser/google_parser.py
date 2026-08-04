@@ -25,9 +25,8 @@ import logging
 GOOGLE_FORMAT = [
     'name', 'skuId', 'description', 'serviceRegions', 'serviceProviderName',
     'category.serviceDisplayName', 'category.resourceFamily', 'category.resourceGroup',
-    'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 'effectiveTime',
-    'pricingExpression.usageUnit', 'pricingExpression.displayQuantity', 'pricingExpression.baseUnit', 
-    'pricingExpression.baseUnitConversionFactor',
+    'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 
+    'effectiveTime', 'pricingExpression.usageUnit', 
     'unitPrice.currencyCode', 'finalPrice', 'final_price_usd'
 ]
 
@@ -92,6 +91,15 @@ def google_parse(response) -> pd.DataFrame:
 
     if 'aggregationInfo.aggregationCount' in df_clean_no_nan.columns:
         df_clean_no_nan.drop(columns=['aggregationInfo.aggregationCount'], inplace=True)
+
+    if 'pricingExpression.baseUnit' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['pricingExpression.baseUnit'], inplace=True)
+
+    if 'pricingExpression.baseUnitConversionFactor' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['pricingExpression.baseUnitConversionFactor'], inplace=True)
+
+    if 'pricingExpression.displayQuantity' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['pricingExpression.displayQuantity'], inplace=True)
 
     final_df = df_clean_no_nan.reindex(columns=GOOGLE_FORMAT)
     
