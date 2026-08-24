@@ -49,12 +49,23 @@ def azure_parse (response) -> pd.DataFrame:
         df_flat= df_flat[df_flat['retailPrice'] > 0].reset_index(drop=True)
 
     #Πετάμε την στήλη unitPrice, καθώς δεν μας χρειάζεται
-    df_flat= df_flat.drop(columns=['unitPrice'], errors='ignore')
+    if 'unitPrice' in df_flat.columns:
+        df_flat.drop(columns=['unitPrice'], inplace=True)
 
     #Κρατάμε μόνο τις εγγραφές τύπου consumption, πετώντας τις υπόλοιπες, καθώς και την τελευταία στήλη που αφορούσε διάρκειες συμβολαίων
     df_flat = df_flat[df_flat['type'] == 'Consumption']
     df_flat = df_flat.reset_index(drop=True)
-    df_flat= df_flat.drop(columns=['reservationTerm'], errors='ignore')
+
+    if 'reservationTerm' in df_flat.columns:
+        df_flat.drop(columns=['reservationTerm'], inplace=True)
+
+    #Πετάω την στήλη effectibeStartDate αφού φτιάχνουμε το έργο χωρίς ιστορικότητα
+    if 'effectiveStartDate' in df_flat.columns:
+        df_flat.drop(columns=['effectiveStartDate'], inplace=True)
+
+    #Πετάω και το endDate για ομοιομορφία αλλά και επειδή δεν χρειάζεται
+    if 'effectiveEndDate' in df_flat.columns:
+        df_flat.drop(columns=['effectiveEndDate'], inplace=True)
 
     return df_flat
 
@@ -109,7 +120,7 @@ def run_azure_pipeline(client):
                 content_type='application/csv'
             )
 
-            logging.info(f"Stored {clean_object_name} with {len(final_df)} rows in Minio clean bucket.")
+            logging.info(f"Stored {clean_object_name} with {len(final_df)} rows and {final_df.shape[1]} columns in Minio clean bucket.")
         else:
             logging.warning(f"Not valid dataframes founds. Unexpected error occured {service}")
 

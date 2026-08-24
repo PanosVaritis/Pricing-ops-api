@@ -26,7 +26,7 @@ GOOGLE_FORMAT = [
     'name', 'skuId', 'description', 'serviceRegions', 'serviceProviderName',
     'category.serviceDisplayName', 'category.resourceFamily', 'category.resourceGroup',
     'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 
-    'effectiveTime', 'pricingExpression.usageUnit', 
+    'pricingExpression.usageUnit', 
     'unitPrice.currencyCode', 'finalPrice', 'final_price_usd'
 ]
 
@@ -100,6 +100,9 @@ def google_parse(response) -> pd.DataFrame:
 
     if 'pricingExpression.displayQuantity' in df_clean_no_nan.columns:
         df_clean_no_nan.drop(columns=['pricingExpression.displayQuantity'], inplace=True)
+
+    if 'effectiveTime' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['effectiveTime'], inplace=True)
 
     final_df = df_clean_no_nan.reindex(columns=GOOGLE_FORMAT)
     
