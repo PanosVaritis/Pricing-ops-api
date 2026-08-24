@@ -23,7 +23,7 @@ import logging
 
 #Creating a stable schema of 23 columns for google. This is as high as it can get
 GOOGLE_FORMAT = [
-    'name', 'skuId', 'description', 'serviceRegions', 'serviceProviderName',
+    'name', 'skuId', 'description', 'serviceProviderName',
     'category.serviceDisplayName', 'category.resourceFamily', 'category.resourceGroup',
     'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 
     'pricingExpression.usageUnit', 
@@ -43,11 +43,14 @@ def google_parse(response) -> pd.DataFrame:
     if df_flat.empty:
         return pd.DataFrame(columns=GOOGLE_FORMAT)
     
-    df_flat2 = df_flat.explode('geoTaxonomy.regions')
+    df_flat2 = df_flat.explode('geoTaxonomy.regions').reset_index(drop=True)
         
-    df_flat3 = df_flat2.explode('serviceRegions')
+    df_flat3 = df_flat2
 
-    df_flat4 = df_flat3.explode('pricingInfo')
+    if 'serviceRegions' in df_flat3.columns:
+        df_flat3.drop(columns=['serviceRegions'], inplace=True)
+
+    df_flat4 = df_flat3.explode('pricingInfo').reset_index(drop=True)
 
     pricing1 = pd.json_normalize(df_flat4['pricingInfo'])
 
@@ -55,7 +58,7 @@ def google_parse(response) -> pd.DataFrame:
 
     df_flat5 = pd.concat([df_flat4.drop(columns=['pricingInfo']), pricing1], axis=1)
 
-    df_flat6 = df_flat5.explode('pricingExpression.tieredRates')
+    df_flat6 = df_flat5.explode('pricingExpression.tieredRates').reset_index(drop=True)
 
     pricing2 = pd.json_normalize(df_flat6['pricingExpression.tieredRates'])
 
@@ -65,7 +68,7 @@ def google_parse(response) -> pd.DataFrame:
 
     df_flat7['finalPrice'] = df_flat7['unitPrice.units'].astype(float) + (df_flat7['unitPrice.nanos'].astype(float) / 1000000000)
 
-    df_clean_no_nan = df_flat7.dropna(subset=['unitPrice.currencyCode']).copy()
+    df_clean_no_nan = df_flat7.dropna(subset=['unitPrice.currencyCode']).reset_index(drop=True).copy()
 
     rate = df_clean_no_nan['currencyConversionRate'].astype(float)
 
@@ -75,12 +78,12 @@ def google_parse(response) -> pd.DataFrame:
 
     df_clean_no_nan.drop(columns=['currencyConversionRate', 'unitPrice.units', 'unitPrice.nanos'], errors='ignore', inplace=True)
 
-    df_clean_no_nan = df_clean_no_nan[df_clean_no_nan['category.usageType'] == 'OnDemand'].copy()
+    df_clean_no_nan = df_clean_no_nan[df_clean_no_nan['category.usageType'] == 'OnDemand'].reset_index(drop=True).copy()
 
     df_clean_no_nan.drop(columns=['summary'], errors='ignore', inplace=True)
 
     if 'startUsageAmount' in df_clean_no_nan.columns:
-        df_clean_no_nan = df_clean_no_nan[df_clean_no_nan['startUsageAmount'] == 0]
+        df_clean_no_nan = df_clean_no_nan[df_clean_no_nan['startUsageAmount'] == 0].reset_index(drop=True)
         df_clean_no_nan.drop(columns=['startUsageAmount'], errors='ignore', inplace=True)
 
     if 'aggregationInfo.aggregationLevel' in df_clean_no_nan.columns:
