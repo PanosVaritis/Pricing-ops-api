@@ -6,3 +6,4 @@ ydata-profiling
 setuptools<70.0.0
 notebook
 ipykernel
+pyarrow>=14.0.0
