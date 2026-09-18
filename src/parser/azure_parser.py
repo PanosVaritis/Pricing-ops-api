@@ -67,6 +67,23 @@ def azure_parse (response) -> pd.DataFrame:
     if 'effectiveEndDate' in df_flat.columns:
         df_flat.drop(columns=['effectiveEndDate'], inplace=True)
 
+    #Πετάω την στήλη με τον τύπο νομίσματος
+    if 'currencyCode' in df_flat.columns:
+        df_flat.drop(columns=['currencyCode'], inplace=True)
+
+    #Πετάω την στήλη η οποία δηλώνει τον τύπο υπηρεσίας (Consumption)
+    if 'type' in df_flat.columns:
+        df_flat.drop(columns=['type'], inplace=True)
+
+    #Μετονομάζουμε την στήλη της τιμής σε priceUSD όπως την έχει και η aws
+    df_flat.rename(columns={'retailPrice': 'priceUSD'}, inplace=True)
+
+    #Kρατάμε μόνο πρώτη βαθμίδα κλιμακωτής χρέωσης και απορρίπτουμε την στήλη 
+    df_flat = df_flat[df_flat['tierMinimumUnits'] == 0]
+    df_flat.reset_index(drop=True, inplace=True)
+    if 'tierMinimumUnits' in df_flat.columns:
+        df_flat.drop(columns=['tierMinimumUnits'], inplace=True)
+
     return df_flat
 
 
