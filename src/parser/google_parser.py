@@ -25,9 +25,9 @@ import logging
 GOOGLE_FORMAT = [
     'name', 'skuId', 'description', 'serviceProviderName',
     'category.serviceDisplayName', 'category.resourceFamily', 'category.resourceGroup',
-    'category.usageType', 'geoTaxonomy.type', 'geoTaxonomy.regions', 
+    'geoTaxonomy.type', 'geoTaxonomy.regions', 
     'pricingExpression.usageUnit', 
-    'unitPrice.currencyCode', 'finalPrice', 'final_price_usd'
+    'priceUSD'
 ]
 
 #Creating a mold for the services that we are going to analyze
@@ -106,6 +106,21 @@ def google_parse(response) -> pd.DataFrame:
 
     if 'effectiveTime' in df_clean_no_nan.columns:
         df_clean_no_nan.drop(columns=['effectiveTime'], inplace=True)
+
+    #Την στήλη που λέει ότι είναι OnDemand την απορρίπτουμε
+    if 'category.usageType' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['category.usageType'], inplace=True)
+
+    #Μετονομάζουμε την τελευταία στήλη σε priceUSD όπως την έχει και η aws
+    df_clean_no_nan.rename(columns={'final_price_usd': 'priceUSD'}, inplace=True)
+
+    #Πετάμε την στήλη με τον τύπο νομίσματος
+    if 'unitPrice.currencyCode' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['unitPrice.currencyCode'], inplace=True)
+
+    #Επίσης πετάμε και την στήλη με τον αρχικό υπολογισμό της τιμής. 
+    if 'finalPrice' in df_clean_no_nan.columns:
+        df_clean_no_nan.drop(columns=['finalPrice'], inplace=True)
 
     final_df = df_clean_no_nan.reindex(columns=GOOGLE_FORMAT)
     
