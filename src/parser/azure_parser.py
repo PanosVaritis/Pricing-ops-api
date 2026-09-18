@@ -84,6 +84,17 @@ def azure_parse (response) -> pd.DataFrame:
     if 'tierMinimumUnits' in df_flat.columns:
         df_flat.drop(columns=['tierMinimumUnits'], inplace=True)
 
+
+    #Πετάμε ορισμένες στήλες ακόμη
+    if 'productId' in df_flat.columns:
+        df_flat.drop(columns=['productId'], inplace=True)
+
+    if 'serviceId' in df_flat.columns:
+        df_flat.drop(columns=['serviceId'], inplace=True)
+
+    if 'location' in df_flat.columns:
+        df_flat.drop(columns=['location'], inplace=True)
+
     return df_flat
 
 
