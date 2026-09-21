@@ -11,16 +11,12 @@ from minio.error import S3Error
 import utils
 import logging
 import ijson
+import json
 
+#Αντικαθιστά το 1ο notebook. Διαβάζει τα πλήρη δεδομένα (χωρίς samples) και φτιάνχει τα dataframes
+def injest_data_and_create_dfs(client, object_name) -> pd.DataFrame:
 
-#Αντικαθιστά το 1ο notebook. Διαβάζει τα πλήρη δεδομένα (χωρίς samples), καθαρίζει τα On-Demand terms και τα αποθηκεύει
-def process_terms_and_base(client) -> pd.DataFrame:
-
-    object_name = ""
-
-
-    TARGET_RECORDS = 100000 
-    sample_products = []
+    all_products = []
 
     response = client.get_object(config.PROVIDERS.get("aws").get("bucket"), object_name=object_name)
 
@@ -32,29 +28,20 @@ def process_terms_and_base(client) -> pd.DataFrame:
         for sku, product_data in parser:
             #Mε την προοπτική να δημιουργεί πεδίο με sku με την αντίστοιχη τιμή μέσα στο dict αλλά αυτό ήδη υπάρχει
             # product_data['sku'] = sku
-            sample_products.append(product_data)
-            
-            count += 1
-            if count >= TARGET_RECORDS:
-                break
-                
-        print(f"Downloaded  {len(sample_products)} records μέσω streaming.")
+            all_products.append(product_data)
 
     finally:
         response.close()
         response.release_conn()
 
     # Μετατροπή σε αρχικό DataFrame
-    df_products = pd.json_normalize(sample_products)
-    print(f"DataFrame: Rows = {df_products.shape[0]}, Columns = {df_products.shape[1]}")
-    df_products.head()
+    df_products = pd.json_normalize(all_products)
+  
 
-   
-
-
+    #2ο βήμα
     # Στο πάνω κελί είχα μία λίστα η οποία είχε μέσα n sku, μαζί με όλα τα attributes τουσ.
     # Τώρα στο βήμα αυτό κάνω access την λίστα και απομονώνω σε ένα set μόνο τον κωδικό των n sku (η επιλογή set βασίζεται στην γρήγορη αναζήτηση)
-    target_skus = {p['sku'] for p in sample_products}
+    target_skus = {p['sku'] for p in all_products}
 
     # Αυτή θα είναι η αντίστοιχη sample products του πάνω βήματος. Θα κρατάει τα ζευγάρια sku, με στοιχεία πληρωμής, και μετά θα την κάνουμε dataframe
     terms_list = []
@@ -76,11 +63,6 @@ def process_terms_and_base(client) -> pd.DataFrame:
                 'termsOndemand': term_offers
             })
             
-            # Aπλά για να βεβαιωθώ ότι όσα products πήρα άλλες τόσες και οι τιμές 
-            if len(terms_list) >= len(target_skus):
-                break
-                
-        print(f"Downloaded {len(terms_list)} matching terms μέσω streaming.")
 
     finally:
         parser.close()
@@ -88,14 +70,9 @@ def process_terms_and_base(client) -> pd.DataFrame:
 
 
     df_terms = pd.DataFrame(terms_list)
-    print(f"Terms DataFrame: Rows = {df_terms.shape[0]}, Columns = {df_terms.shape[1]}")
-    df_terms.head()
 
 
-
-
-
-
+    #3ο βήμα
     flattened_list = []
 
     for idx, row in df_terms.iterrows():
@@ -118,15 +95,10 @@ def process_terms_and_base(client) -> pd.DataFrame:
 
     df_terms = pd.DataFrame(flattened_list)
 
-    print(df_terms.columns)
-    df_terms.head(2)
+  
 
 
-
-
-
-
-
+    #4ο βήμα
     itemsList = []
 
     for idx, row in df_terms.iterrows():
@@ -168,41 +140,22 @@ def process_terms_and_base(client) -> pd.DataFrame:
 
     df_terms_final = pd.DataFrame(itemsList)
 
-    print(f"Dimensions (rows,cols): {df_terms_final.shape}")
-    df_terms_final.head()
+    process_terms(df_terms_final=df_terms_final)
 
+    return df_terms_final, df_products
 
+   
 
-
-
-
+#5ο βήμα: Επεξεργασία του πίνακα τιμών
+def process_terms(df_terms_final) -> pd.DataFrame:
 
     df_terms_final = df_terms_final.explode('appliesTo').reset_index(drop=True)
-
-    print(f"Dimensions (rows,cols): {df_terms_final.shape}")
-    df_terms_final.head()
-
-
-
-
 
     if 'termAttributes' in df_terms_final.columns:
         df_terms_final = df_terms_final.drop(columns=['termAttributes'])
 
-    print (f"Dimension (rows,cols): {df_terms_final.shape}")
-    df_terms_final.head()
 
-
-
-
-
-
-
-
-
-    rowCount = len(df_terms_final)
-
-    #Βάζω το if για να μπορώ να τρέχω το κελί και μόνο του χωρίς να πετάει error
+    #Βάζω το if για να μπορώ να τρέχω το κελί και μόνο του χωρίς να πετάει error (έχω 2 στήλες με sku. κρατά την μία μόνο μετά από έναν έλεγχο)
     if 'skuNew' in df_terms_final.columns and 'sku' in df_terms_final.columns:
 
         # Φτιάχνω την συνθήκη ελέγχου - διαγραφής μιας υπηρεσίας και την εφαρμόζω απευθείας μετά πάνω στο dataframe. Γλιτώνω το loop 
@@ -212,29 +165,14 @@ def process_terms_and_base(client) -> pd.DataFrame:
 
         df_terms_final = df_filtered_terms.copy()
 
-    print(f"Initial records: {rowCount}")
-    print(f"Rejected records: {rowCount - len(df_terms_final)}")
 
     if 'skuNew' in df_terms_final.columns:
         df_terms_final = df_terms_final.drop(columns=['skuNew'])
 
-    print(f"Dimensions (rows,cols): {df_terms_final.shape}")
-    df_terms_final.head()
-
-
-
-
-
-
+ 
 
     if 'effectiveDate' in df_terms_final.columns:
         df_terms_final = df_terms_final.drop(columns=['effectiveDate'])
-
-    print(f"Dimensions (rows,cols): {df_terms_final.shape}")
-    df_terms_final.head()
-
-
-
 
 
 
@@ -246,13 +184,6 @@ def process_terms_and_base(client) -> pd.DataFrame:
 
     df_terms_final.reset_index(drop=True, inplace=True)
 
-    print(f"Dimensions (rows,cols): {df_terms_final.shape}")
-    df_terms_final.head()
-
-
-
-
-
 
 
     df_terms_final['priceUSD'] = pd.to_numeric(df_terms_final['priceUSD'], errors='coerce')
@@ -261,12 +192,7 @@ def process_terms_and_base(client) -> pd.DataFrame:
 
     df_terms_final.reset_index(drop=True, inplace=True)
 
-    print(f"Dimensions (rows,cols): {df_terms_final.shape}")
-    df_terms_final.head()
-
-
-
-
+  
 
     if 'appliesTo' in df_terms_final.columns:
         df_terms_final = df_terms_final[df_terms_final['appliesTo'].isna()]
@@ -275,35 +201,18 @@ def process_terms_and_base(client) -> pd.DataFrame:
 
         df_terms_final.drop(columns=['appliesTo'], errors='ignore', inplace=True)
 
-    print(f"Dimensions (rows,cols): {df_terms_final.shape}")
-    df_terms_final.head()
-
-
-
-
-
-
-
+  
     colsToCheck = ['sku', 'priceUSD', 'unit']
     df_terms_final.dropna(subset=colsToCheck, inplace=True)
     df_terms_final.reset_index(drop=True, inplace=True)
 
 
-
-
-
-
     if 'offerTermCode' in df_terms_final.columns:
-
         df_terms_final.drop(columns=['offerTermCode'], errors='ignore', inplace=True)
 
-    print(f"Dimensions (rows,cols): {df_terms_final.shape}")
+    return df_terms_final
 
-
-
-
-
-
+ 
 
 
 #Το pipeline για EC2 (Instances, Bare Metal, Storage & Extras)
@@ -312,36 +221,213 @@ def parse_ec2_compute(client):
 
 
 
-#  Το pipeline για RDS (Instances, Storage, Extras)
-def parse_rds():
-    print ()
-
-
-
 
 #Το pipeline για S3 (Storage Master & Operations Master)
-def parse_s3():
-    print() 
+def parse_s3(df_products, df_terms):
+
+    if 'attributes.servicename' in df_products.columns:
+        df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
+
+
+    # Aπό το s3 θα προκύψουν 2 επιμέρους dataframes
+    df_s3_storage = df_products[df_products['productFamily'] == 'Storage'].reset_index(drop=True)
+
+    df_s3_operations = df_products[df_products['productFamily'] != 'Storage'].reset_index(drop=True)
+
+    #1o Dataframe 
+    id_columns_s3_stor = ['sku', 'productFamily', 'attributes.servicecode', 'attributes.location', 'attributes.locationType']
+
+    feature_columns_s3_stor = ['attributes.usagetype', 'attributes.storageClass', 'attributes.volumeType', 'attributes.availability', 'attributes.durability']
+
+    total_s3_stor_cols = id_columns_s3_stor + feature_columns_s3_stor
+
+    remaining_cols_s3_stor = [col for col in df_s3_storage.columns if col not in total_s3_stor_cols]
+
+    df_final_s3_storage = df_s3_storage[total_s3_stor_cols].copy()
+    df_final_s3_storage['additional_attributes'] = df_s3_storage[remaining_cols_s3_stor].apply(
+        lambda row: json.dumps({k: v for k, v in row.to_dict().items() if pd.notna(v)}), 
+        axis=1
+    )
+
+    df_master_s3_storage = pd.merge(df_final_s3_storage, df_terms, on='sku', how='inner').reset_index(drop=True)
+
+
+    #2o Dataframe
+    id_columns_s3_ops = ['sku', 'productFamily', 'attributes.servicecode', 'attributes.location', 'attributes.locationType', 'attributes.regionCode']
+
+    feature_columns_s3_ops = ['attributes.usagetype', 'attributes.operation', 'attributes.transferType','attributes.fromLocation', 'attributes.fromLocationType', 'attributes.toLocation',
+                            'attributes.toLocationType', 'attributes.fromRegionCode', 'attributes.toRegionCode', 'attributes.feeCode', 'attributes.feeDescription', 'attributes.group',
+                            'attributes.groupDescription', 'attributes.storageClass','attributes.volumeType']
+
+
+    total_s3_ops_cols = id_columns_s3_ops + feature_columns_s3_ops
+
+    remaining_cols_s3_ops = [col for col in df_s3_operations.columns if col not in total_s3_ops_cols]
+
+    df_final_s3_operations = df_s3_operations[total_s3_ops_cols].copy()
+    df_final_s3_operations['additional_attributes'] = df_s3_operations[remaining_cols_s3_ops].apply(
+        lambda row: json.dumps({k: v for k, v in row.to_dict().items() if pd.notna(v)}), 
+        axis=1
+    )
+
+    df_master_s3_operations = pd.merge(df_final_s3_operations, df_terms, on='sku', how='inner').reset_index(drop=True)
+
+
+
+#  Το pipeline για RDS (Instances, Storage, Extras)
+def parse_rds(df_products, df_terms):
+
+    if 'attributes.servicename' in df_products.columns:
+        df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
+
+
+    #Aπό το rds θα προκύψουν 3 επιμέτους Dataframe
+    df_database_instance= df_products[df_products['productFamily'] == 'Database Instance'].reset_index(drop=True)
+
+    target_storage_families = ['Database Storage', 'Provisioned IOPS']
+    df_rds_storage = df_products[df_products['productFamily'].isin(target_storage_families)].reset_index(drop=True)
+
+    excluded_families = ['Database Instance', 'Database Storage', 'Provisioned IOPS']
+    df_rds_extras = df_products[~df_products['productFamily'].isin(excluded_families)].reset_index(drop=True)
+
+
+    #1o dataframe (Database instance)
+    id_columns_db_instance = ['sku', 'productFamily', 'attributes.servicecode', 'attributes.location', 'attributes.locationType']
+
+    feature_columns_db_instance = ['attributes.instanceType', 'attributes.instanceFamily', 'attributes.vcpu', 'attributes.memory', 'attributes.storage', 'attributes.physicalProcessor', 
+                                'attributes.networkPerformance', 'attributes.databaseEngine','attributes.databaseEdition', 'attributes.licenseModel', 'attributes.deploymentOption']
+
+    total_db_instance = []
+    total_db_instance.extend(id_columns_db_instance)
+    total_db_instance.extend(feature_columns_db_instance)
+    df_database_instance[total_db_instance].head()
+
+
+    remaining_cols_rds = [col for col in df_database_instance.columns if col not in total_db_instance]
+
+    df_final_database_instance = df_database_instance[total_db_instance].copy()
+
+    df_final_database_instance['additional_attributes'] = df_database_instance[remaining_cols_rds].apply(
+        lambda row: json.dumps({k: v for k, v in row.to_dict().items() if pd.notna(v)}), 
+        axis=1
+    )
+
+    df_master_database_instance = pd.merge(df_final_database_instance, df_terms, on='sku', how='inner').reset_index(drop=True)
+
+
+
+    #2o dataframe (Storage and iops)
+    id_columns_storage = ['sku', 'productFamily', 'attributes.servicecode', 'attributes.location', 'attributes.locationType']
+
+    feature_columns_storage = ['attributes.volumeName', 'attributes.volumeType', 'attributes.storageMedia', 'attributes.minVolumeSize', 'attributes.maxVolumeSize', 
+                               'attributes.databaseEngine', 'attributes.deploymentOption', 'attributes.usagetype']
+
+    total_storage_cols = id_columns_storage + feature_columns_storage
+
+    remaining_cols_storage = [col for col in df_rds_storage.columns if col not in total_storage_cols]
+
+    df_final_storage = df_rds_storage[total_storage_cols].copy()
+
+    df_final_storage['additional_attributes'] = df_rds_storage[remaining_cols_storage].apply(
+        lambda row: json.dumps({k: v for k, v in row.to_dict().items() if pd.notna(v)}), 
+        axis=1
+    )
+
+    df_master_storage = pd.merge(df_final_storage, df_terms, on='sku', how='inner').reset_index(drop=True)
+
+
+
+    #3o dataframe (rest)
+    id_columns_extras = ['sku', 'productFamily', 'attributes.servicecode', 'attributes.location', 'attributes.locationType']
+
+    feature_columns_extras = ['attributes.usagetype','attributes.operation', 'attributes.databaseEngine','attributes.engineMajorVersion',
+                            'attributes.extendedSupportPricingYear','attributes.group', 'attributes.acu']
+
+
+    total_extras_cols = id_columns_extras + feature_columns_extras
+
+    remaining_cols_extras = [col for col in df_rds_extras.columns if col not in total_extras_cols]
+
+    df_final_extras = df_rds_extras[total_extras_cols].copy()
+    df_final_extras['additional_attributes'] = df_rds_extras[remaining_cols_extras].apply(
+        lambda row: json.dumps({k: v for k, v in row.to_dict().items() if pd.notna(v)}), 
+        axis=1
+    )
+
+    df_master_extras = pd.merge(df_final_extras, df_terms, on='sku', how='inner').reset_index(drop=True)
+
+
 
 
 
 #Το pipeline για VPC (Ενιαίο Master)
-def parse_vpc():
-    print()
+def parse_vpc(df_products, df_terms):
+
+    if 'attributes.servicename' in df_products.columns:
+        df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
+
+    id_columns_vpc = ['sku', 'productFamily', 'attributes.servicecode', 
+                'attributes.location', 'attributes.locationType', 'attributes.regionCode']
+
+    feature_columns_vpc = ['attributes.usagetype','attributes.operation','attributes.endpointType','attributes.vpnType', 'attributes.attachmentType',
+                    'attributes.trafficDirection', 'attributes.transferType', 'attributes.fromLocation', 'attributes.fromLocationType',
+                    'attributes.toLocation', 'attributes.toLocationType', 'attributes.fromRegionCode', 'attributes.toRegionCode',
+                    'attributes.group', 'attributes.groupDescription']
 
 
+    total_vpc_cols = id_columns_vpc + feature_columns_vpc
+
+    remaining_cols_vpc = [col for col in df_products.columns if col not in total_vpc_cols]
+
+    df_final_vpc = df_products[total_vpc_cols].copy()
+    if remaining_cols_vpc:
+        df_final_vpc['additional_attributes'] = df_products[remaining_cols_vpc].apply(
+            lambda row: json.dumps({k: v for k, v in row.to_dict().items() if pd.notna(v)}), 
+            axis=1
+        )
+    else:
+        df_final_vpc['additional_attributes'] = "{}"
+
+    df_master_vpc = pd.merge(df_final_vpc, df_terms, on='sku', how='inner').reset_index(drop=True)
 
 
 
 #Το pipeline για EKS (Ενιαίο Master με απευθείας JOIN)
-def parse_eks():
-    print ()
+def parse_eks(df_products, df_terms):
+
+    if 'attributes.servicename' in df_products.columns:
+        df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
+
+    df_products.drop(columns=['attributes.regionCode'], errors='ignore', inplace=True)
+
+    df_master_eks = pd.merge(df_products, df_terms, on='sku', how='inner').reset_index(drop=True)
 
 
 
 def run_aws_pipeline(client):
 
-    df_terms, df_products = parse_ec2_compute(client=client)
+    # services = ['AmazonEC2.json', 'AmazonS3.json']
+    services= ['AmazonEKS.json', 'AmazonVPC.json', 'AmazonRDS.json', 'AmazonS3.json']
+    for object_name in services:
+
+        df_terms, df_products = injest_data_and_create_dfs(client=client, object_name=object_name)
+        logging.info(f"Sucessfuly created {object_name} service dataframes")
+
+        if object_name == 'AmazonEKS.json':
+            parse_eks(df_terms=df_terms, df_products=df_products)
+            logging.info("Sucessfully parsed eks")
+        elif object_name == 'AmazonVPC.json':
+            parse_vpc(df_products=df_products, df_terms=df_terms)
+            logging.info("Sucessfully parsed vpc")
+        elif object_name == 'AmazonRDS.json':
+            parse_rds(df_products=df_products, df_terms=df_terms)
+            logging.info("Sucessfully parsed EDS")
+        elif object_name == 'AmazonS3.json':
+            parse_s3(df_products=df_products, df_terms=df_terms)
+            logging.info("Sucessfully parsed S3")
+
+    
+    
 
 
 
@@ -357,7 +443,7 @@ def main():
     client = config.create_minio_client()
     logging.info ("Succesfully created client")
 
-    if not utils.bucket_creation(client, config.PROVIDERS.get("azure").get("clean_bucket")):
+    if not utils.bucket_creation(client, config.PROVIDERS.get("aws").get("clean_bucket")):
         return
 
 
