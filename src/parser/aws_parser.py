@@ -216,8 +216,114 @@ def process_terms(df_terms_final) -> pd.DataFrame:
 
 
 #Το pipeline για EC2 (Instances, Bare Metal, Storage & Extras)
-def parse_ec2_compute(client):
-    print()
+def parse_ec2_compute(df_products, df_terms, client):
+
+    if 'attributes.marketoption' in df_products.columns:
+        df_products.drop(columns=['attributes.marketoption'], errors='ignore', inplace=True)
+
+    if 'attributes.servicename' in df_products.columns:
+        df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
+
+
+    #Προκύτπουν από το ec2 3 επίμέρους αρχεία με καθαρά δεδομένα
+    df_compute = df_products[df_products['productFamily'] == 'Compute Instance'].reset_index(drop=True)
+
+    df_bare_metal = df_products[df_products['productFamily'] == 'Compute Instance (bare metal)'].reset_index(drop=True)
+
+    df_extras = df_products[~df_products['productFamily'].isin(['Compute Instance', 'Compute Instance (bare metal)'])].reset_index(drop=True)
+
+
+    #1ο dataframe, αφορά compute instance
+    id_columns = ['sku', 'productFamily', 'attributes.servicecode', 'attributes.location', 'attributes.locationType']
+
+    #Πεδία χαρακτηρισμού
+    feature_columns = ['attributes.instanceType', 'attributes.instanceFamily', 'attributes.instanceFamilyCategory', 'attributes.vcpu', 'attributes.memory', 'attributes.operatingSystem',
+                   'attributes.tenancy', 'attributes.processorArchitecture', 'attributes.physicalProcessor', 'attributes.clockSpeed', 'attributes.storage']
+
+
+    total = []
+    total.extend(id_columns)
+    total.extend(feature_columns)
+    df_compute[total].head()
+
+
+    # Βρίσκουμε ποιες στήλες του DataFrame ΔΕΝ περιέχονται στη λίστα 'total'. Η total περιέχει όλα τα στοιχεία που θέλω να κρατήσω ως βασικά
+    remaining_cols = [col for col in df_compute.columns if col not in total]
+
+    #Δημιουργώ αντίγραφο του compute με τις στήλες που θέλω
+    df_final_compute = df_compute[total].copy()
+
+    #Φτιάχνω μία νέα στήλη με τις υπολοιπόμενες στήλες σε μορφή λεξικού
+    df_final_compute['additionalAttributes'] = df_compute[remaining_cols].apply(
+        lambda row: json.dumps({k: v for k, v in row.to_dict().items() if pd.notna(v)}), 
+        axis=1
+    )
+
+    #κάνω merge τον πίνακα compute με τον πίνακα των τιμών βάση του sku. Επειδή έιχα 2 στήλες sku με το ίδιο όνομα η μία φεύγει. Για να μπει ένα πεδίο
+    #, στον τελικό πίνακακ πρέπει να υπάρχει και στους 2 το sku. Ουσιαστικά παίρνει γραμμή 1 τουc compute, ψάνψει όλο το terms για το sku αυτό, και αν το
+    # βρει φτιάνει νέα εγγραφή στον πίνακα master, αλλιώς το αφήνει εκτός. Και συνεχίζει. Δεν ανησυχώ για διπλότυπα. Βάση του καθαρισμού δεν υπάρχουν, αλλά και να υπάρχουν τα διαχειρίζεται η εντολή
+    
+    df_master_compute = pd.merge(df_final_compute, df_terms, on='sku', how='inner').reset_index(drop=True)
+
+
+    #2o dataframe αφορά compute bare metal
+    id_columns_metal = ['sku','productFamily', 'attributes.servicecode', 'attributes.location', 'attributes.locationType']
+
+    feature_columns_metal = [ 'attributes.instanceType', 'attributes.instanceFamily', 'attributes.instanceFamilyCategory', 'attributes.vcpu', 'attributes.memory', 'attributes.operatingSystem',
+                            'attributes.tenancy', 'attributes.processorArchitecture', 'attributes.physicalProcessor', 'attributes.clockSpeed','attributes.storage',
+                            'attributes.networkPerformance','attributes.dedicatedEbsThroughput']
+
+    total_metal = []
+    total_metal.extend(id_columns_metal)
+    total_metal.extend(feature_columns_metal)
+
+
+    remaining_cols_metal = [col for col in df_bare_metal.columns if col not in total_metal]
+    df_final_metal = df_bare_metal[total_metal].copy()
+
+    df_final_metal['additionalAttributes'] = df_bare_metal[remaining_cols_metal].apply(
+        lambda row: json.dumps({k: v for k, v in row.to_dict().items() if pd.notna(v)}), 
+        axis=1
+    )
+
+
+    df_master_metal = pd.merge(df_final_metal, df_terms, on='sku', how='inner').reset_index(drop=True)
+
+
+    #3o dataframe αφορά όλα τα άλλα
+    id_columns_extras = ['sku', 'productFamily', 'attributes.servicecode', 'attributes.location', 'attributes.locationType']   
+
+
+    remaining_cols_extras = [col for col in df_extras.columns if col not in id_columns_extras]
+
+    df_final_extras = df_extras[id_columns_extras].copy()
+
+    # Επιπλέον στήλη με όλες τις όχι βασικές στήλες. Πετάμε NAN 
+    df_final_extras['additional_attributes'] = df_extras[remaining_cols_extras].apply(
+        lambda row: json.dumps({k: v for k, v in row.to_dict().items() if pd.notna(v)}), 
+        axis=1
+    )
+
+    df_master_extras = pd.merge( df_final_extras, df_terms, on='sku', how='inner').reset_index(drop=True)
+
+
+    datasets_to_upload = {
+        "aws_ec2_compute_clean.csv": df_master_compute,
+        "aws_ec2_compute_metal_clean.csv": df_master_metal,
+        "aws_ec2_extras_clean.csc": df_master_extras
+    }
+
+    for file_name, df in datasets_to_upload.items():
+        csv_bytes = df.to_csv(index=False).encode('utf-8')
+        
+        client.put_object(
+            bucket_name=config.PROVIDERS.get("aws").get("clean_bucket"),
+            object_name=file_name,
+            data=io.BytesIO(csv_bytes),
+            length=len(csv_bytes),
+            content_type='application/csv'
+        )
+
 
 
 
