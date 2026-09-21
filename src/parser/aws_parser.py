@@ -223,7 +223,7 @@ def parse_ec2_compute(client):
 
 
 #Το pipeline για S3 (Storage Master & Operations Master)
-def parse_s3(df_products, df_terms):
+def parse_s3(df_products, df_terms, client):
 
     if 'attributes.servicename' in df_products.columns:
         df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
@@ -274,8 +274,26 @@ def parse_s3(df_products, df_terms):
 
 
 
+    datasets_to_upload = {
+        "aws_s3_storage_clean.csv": df_master_s3_storage,
+        "aws_s3_operations_clean.csv": df_master_s3_operations
+    }
+
+    for file_name, df in datasets_to_upload.items():
+        csv_bytes = df.to_csv(index=False).encode('utf-8')
+        
+        client.put_object(
+            bucket_name=config.PROVIDERS.get("aws").get("clean_bucket"),
+            object_name=file_name,
+            data=io.BytesIO(csv_bytes),
+            length=len(csv_bytes),
+            content_type='application/csv'
+        )
+
+
+
 #  Το pipeline για RDS (Instances, Storage, Extras)
-def parse_rds(df_products, df_terms):
+def parse_rds(df_products, df_terms, client):
 
     if 'attributes.servicename' in df_products.columns:
         df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
@@ -357,11 +375,27 @@ def parse_rds(df_products, df_terms):
     df_master_extras = pd.merge(df_final_extras, df_terms, on='sku', how='inner').reset_index(drop=True)
 
 
+    datasets_to_upload = {
+        "aws_rds_instances_clean.csv": df_master_database_instance,
+        "aws_rds_storage_clean.csv": df_master_storage,
+        "aws_rds_extras_clean.csv": df_master_extras
+    }
+
+    for file_name, df in datasets_to_upload.items():
+        csv_bytes = df.to_csv(index=False).encode('utf-8')
+        
+        client.put_object(
+            bucket_name=config.PROVIDERS.get("aws").get("clean_bucket"),
+            object_name=file_name,
+            data=io.BytesIO(csv_bytes),
+            length=len(csv_bytes),
+            content_type='application/csv'
+        )
 
 
 
 #Το pipeline για VPC (Ενιαίο Master)
-def parse_vpc(df_products, df_terms):
+def parse_vpc(df_products, df_terms, client):
 
     if 'attributes.servicename' in df_products.columns:
         df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
@@ -390,10 +424,21 @@ def parse_vpc(df_products, df_terms):
 
     df_master_vpc = pd.merge(df_final_vpc, df_terms, on='sku', how='inner').reset_index(drop=True)
 
+    csv_bytes = df_master_vpc.to_csv(index=False).encode('utf-8')
+    clean_object_name = "aws_vpc_clean.csv"
+
+    client.put_object (
+        bucket_name=config.PROVIDERS.get("aws").get("clean_bucket"),
+        object_name=clean_object_name,
+        data=io.BytesIO(csv_bytes),
+        length=len(csv_bytes),
+        content_type='application/csv'
+        )
+
 
 
 #Το pipeline για EKS (Ενιαίο Master με απευθείας JOIN)
-def parse_eks(df_products, df_terms):
+def parse_eks(df_products, df_terms, client):
 
     if 'attributes.servicename' in df_products.columns:
         df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
@@ -402,8 +447,20 @@ def parse_eks(df_products, df_terms):
 
     df_master_eks = pd.merge(df_products, df_terms, on='sku', how='inner').reset_index(drop=True)
 
+    csv_bytes = df_master_eks.to_csv(index=False).encode('utf-8')
+    clean_object_name = "aws_eks_clean.csv"
 
+    client.put_object (
+        bucket_name=config.PROVIDERS.get("aws").get("clean_bucket"),
+        object_name=clean_object_name,
+        data=io.BytesIO(csv_bytes),
+        length=len(csv_bytes),
+        content_type='application/csv'
+        )
 
+    
+
+# Ρυθμίζει όλη την εκτέλεση
 def run_aws_pipeline(client):
 
     # services = ['AmazonEC2.json', 'AmazonS3.json']
@@ -414,26 +471,20 @@ def run_aws_pipeline(client):
         logging.info(f"Sucessfuly created {object_name} service dataframes")
 
         if object_name == 'AmazonEKS.json':
-            parse_eks(df_terms=df_terms, df_products=df_products)
+            parse_eks(df_terms=df_terms, df_products=df_products, client=client)
             logging.info("Sucessfully parsed eks")
         elif object_name == 'AmazonVPC.json':
-            parse_vpc(df_products=df_products, df_terms=df_terms)
+            parse_vpc(df_products=df_products, df_terms=df_terms, client=client)
             logging.info("Sucessfully parsed vpc")
         elif object_name == 'AmazonRDS.json':
-            parse_rds(df_products=df_products, df_terms=df_terms)
+            parse_rds(df_products=df_products, df_terms=df_terms, client=client)
             logging.info("Sucessfully parsed EDS")
         elif object_name == 'AmazonS3.json':
-            parse_s3(df_products=df_products, df_terms=df_terms)
+            parse_s3(df_products=df_products, df_terms=df_terms, client=client)
             logging.info("Sucessfully parsed S3")
 
     
     
-
-
-
-
-
-
 def main():
 
     
