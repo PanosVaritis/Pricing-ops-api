@@ -62,7 +62,8 @@ def main():
         logging.info ("Succesfully created client")
 
         if utils.bucket_creation(client, config.PROVIDERS.get("azure").get("bucket")):
-        
+            logging.info ("------------------------------------------------------------------------------------")
+
             logging.info ("Starting injestion")
             service_injestion(client=client)
 

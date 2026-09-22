@@ -115,6 +115,8 @@ def main():
 
         if not utils.bucket_creation(client, config.PROVIDERS.get("google").get("bucket")):
             return
+        logging.info ("------------------------------------------------------------------------------------")
+
 
 
 

@@ -9,6 +9,7 @@ path_to_root = os.path.join (current, '../..')
 abs_path = os.path.abspath(path_to_root)
 sys.path.append(abs_path)
 import utils
+import shutil
 
 import azure_data
 import google_data
@@ -18,18 +19,40 @@ import aws_data
 
 def main():
     try:
-        utils.set_up_logger()
-        logging.info("Running script to injest data from providers\n")
-        azure_data.main()
-        print ()
-        aws_data.main()
-        print()
-        google_data.main()
-        print()
 
-    except Exception as e:
-        logging.error ("Error ")
+        print ("-" * shutil.get_terminal_size().columns)
+
+        utils.set_up_logger()
+
+        print ("-" * shutil.get_terminal_size().columns)
+        logging.info("Running script to injest data from providers")
+        print ("-" * shutil.get_terminal_size().columns)
+
+        azure_data.main()
+
+        print ("-" * shutil.get_terminal_size().columns)
+        aws_data.main()
+
+        print ("-" * shutil.get_terminal_size().columns)
+        google_data.main()
+
+        print ("-" * shutil.get_terminal_size().columns)
+
+
+
+    except KeyboardInterrupt:
+        logging.info("Execution interrupted by user.")
+
+    except Exception :
+        logging.exception ("Error while running ingestion script ")
+
 
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+    

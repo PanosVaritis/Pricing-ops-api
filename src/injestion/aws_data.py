@@ -70,6 +70,8 @@ def main():
         logging.info ("Succesfully created client")
 
         if utils.bucket_creation(client, config.PROVIDERS.get("aws").get("bucket")):
+            logging.info ("------------------------------------------------------------------------------------")
+
             data = get_index_page()
             
             if data is None:
