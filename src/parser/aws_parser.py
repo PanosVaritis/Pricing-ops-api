@@ -646,7 +646,6 @@ def main():
 
     utils.set_up_logger()
 
-    logging.info ("========================================================================================")
 
     logging.info ("Starting aws pipeline execution")
 
@@ -660,7 +659,6 @@ def main():
     
 
     run_aws_pipeline(client=client)
-    logging.info ("==========================================================================================")
 
 
 

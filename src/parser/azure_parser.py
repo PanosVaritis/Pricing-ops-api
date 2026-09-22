@@ -128,6 +128,7 @@ def run_azure_pipeline(client):
             response.close()
             response.release_conn()
 
+    logging.info ("------------------------------------------------------------------------------------")
 
     for service, dataframe_list in services_set.items():
         if dataframe_list:
@@ -151,8 +152,9 @@ def run_azure_pipeline(client):
             logging.info(f"Stored {clean_object_name} with {len(final_df)} rows and {final_df.shape[1]} columns in Minio clean bucket.")
         else:
             logging.warning(f"Not valid dataframes founds. Unexpected error occured {service}")
+    logging.info ("------------------------------------------------------------------------------------")
 
-    logging.info("Azure Pipeline completed successfully")
+    logging.info("Azure data cleaning pipeline completed successfully")
     
 
 def main():
@@ -165,6 +167,9 @@ def main():
 
     if not utils.bucket_creation(client, config.PROVIDERS.get("azure").get("clean_bucket")):
         return
+
+    logging.info ("------------------------------------------------------------------------------------")
+    
 
 
     run_azure_pipeline(client=client)

@@ -141,7 +141,10 @@ def run_google_pipeline(client):
 
         df_list = []
 
+        logging.info ("------------------------------------------------------------------------------------")
+
         for obj in objects:
+
 
             logging.info (f"Processing {obj.object_name}")
             
@@ -178,10 +181,13 @@ def run_google_pipeline(client):
                 content_type='application/csv'
             )
             logging.info (f"Stored {clean_object_name} with {len(df_all_pages)} rows ansd {df_all_pages.shape[1]} cols in Minio clean bucket.")
+
         else:
             logging.warning ("Not valid dataframes founds. Unexpected error occured")
 
-    logging.info ("Google Pipeline completed successfully")
+    logging.info ("------------------------------------------------------------------------------------")
+
+    logging.info ("Google data cleaning ipeline completed successfully")
 
 
 
