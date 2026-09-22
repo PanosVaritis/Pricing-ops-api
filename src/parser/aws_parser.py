@@ -12,6 +12,7 @@ import utils
 import logging
 import ijson
 import json
+import shutil
 
 #Αντικαθιστά το 1ο notebook. Διαβάζει τα πλήρη δεδομένα (χωρίς samples) και φτιάνχει τα dataframes
 def injest_data_and_create_dfs(client, object_name) -> pd.DataFrame:
@@ -144,9 +145,10 @@ def injest_data_and_create_dfs(client, object_name) -> pd.DataFrame:
 
     return df_terms_final, df_products
 
+
    
 
-#5ο βήμα: Επεξεργασία του πίνακα τιμών
+#Επεξεργασία του πίνακα τιμών
 def process_terms(df_terms_final) -> pd.DataFrame:
 
     df_terms_final = df_terms_final.explode('appliesTo').reset_index(drop=True)
@@ -327,9 +329,10 @@ def parse_ec2_compute(df_products, df_terms, client):
 
 
 
-
 #Το pipeline για S3 (Storage Master & Operations Master)
 def parse_s3(df_products, df_terms, client):
+
+    logging.info ("Starting awsS3 proccesing")
 
     if 'attributes.servicename' in df_products.columns:
         df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
@@ -356,6 +359,7 @@ def parse_s3(df_products, df_terms, client):
     )
 
     df_master_s3_storage = pd.merge(df_final_s3_storage, df_terms, on='sku', how='inner').reset_index(drop=True)
+    logging.info("Created S3 storage dataframe")
 
 
     #2o Dataframe
@@ -377,6 +381,7 @@ def parse_s3(df_products, df_terms, client):
     )
 
     df_master_s3_operations = pd.merge(df_final_s3_operations, df_terms, on='sku', how='inner').reset_index(drop=True)
+    logging.info("Created S3 operations dataframe")
 
 
 
@@ -384,6 +389,8 @@ def parse_s3(df_products, df_terms, client):
         "aws_s3_storage_clean.csv": df_master_s3_storage,
         "aws_s3_operations_clean.csv": df_master_s3_operations
     }
+
+    logging.info("Upload procedure for s3 dataframes")
 
     for file_name, df in datasets_to_upload.items():
         csv_bytes = df.to_csv(index=False).encode('utf-8')
@@ -396,10 +403,15 @@ def parse_s3(df_products, df_terms, client):
             content_type='application/csv'
         )
 
+        logging.info (f"Stored {file_name} with {df.shape[0]} rows, and {df.shape[1]} cols, in {config.PROVIDERS.get('aws').get('clean_bucket')} Minio bucket")
 
 
-#  Το pipeline για RDS (Instances, Storage, Extras)
+
+#Το pipeline για RDS (Instances, Storage, Extras)
 def parse_rds(df_products, df_terms, client):
+
+    logging.info ("Starting awsRDS proccesing")
+
 
     if 'attributes.servicename' in df_products.columns:
         df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
@@ -437,7 +449,7 @@ def parse_rds(df_products, df_terms, client):
     )
 
     df_master_database_instance = pd.merge(df_final_database_instance, df_terms, on='sku', how='inner').reset_index(drop=True)
-
+    logging.info("Created RDS database instance dataframe")
 
 
     #2o dataframe (Storage and iops)
@@ -458,6 +470,7 @@ def parse_rds(df_products, df_terms, client):
     )
 
     df_master_storage = pd.merge(df_final_storage, df_terms, on='sku', how='inner').reset_index(drop=True)
+    logging.info("Created RDS storage and IOPS dataframe")
 
 
 
@@ -479,6 +492,7 @@ def parse_rds(df_products, df_terms, client):
     )
 
     df_master_extras = pd.merge(df_final_extras, df_terms, on='sku', how='inner').reset_index(drop=True)
+    logging.info("Created RDS rest dataframe")
 
 
     datasets_to_upload = {
@@ -487,6 +501,7 @@ def parse_rds(df_products, df_terms, client):
         "aws_rds_extras_clean.csv": df_master_extras
     }
 
+    logging.info("Upload procedure for rds dataframes")
     for file_name, df in datasets_to_upload.items():
         csv_bytes = df.to_csv(index=False).encode('utf-8')
         
@@ -498,10 +513,17 @@ def parse_rds(df_products, df_terms, client):
             content_type='application/csv'
         )
 
+        logging.info (f"Stored {file_name} with {df.shape[0]} rows, and {df.shape[1]} cols, in {config.PROVIDERS.get('aws').get('clean_bucket')} Minio bucket")
+
+
+
 
 
 #Το pipeline για VPC (Ενιαίο Master)
 def parse_vpc(df_products, df_terms, client):
+
+    logging.info ("Starting awsVPC proccesing")
+
 
     if 'attributes.servicename' in df_products.columns:
         df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
@@ -530,6 +552,7 @@ def parse_vpc(df_products, df_terms, client):
 
     df_master_vpc = pd.merge(df_final_vpc, df_terms, on='sku', how='inner').reset_index(drop=True)
 
+    logging.info("Upload procedure for vpc dataframe")
     csv_bytes = df_master_vpc.to_csv(index=False).encode('utf-8')
     clean_object_name = "aws_vpc_clean.csv"
 
@@ -541,10 +564,16 @@ def parse_vpc(df_products, df_terms, client):
         content_type='application/csv'
         )
 
+    logging.info (f"Stored {clean_object_name} with {df_master_vpc.shape[0]} rows, and {df_master_vpc.shape[1]} cols, in {config.PROVIDERS.get('aws').get('clean_bucket')} Minio bucket")
+
+
 
 
 #Το pipeline για EKS (Ενιαίο Master με απευθείας JOIN)
 def parse_eks(df_products, df_terms, client):
+
+    logging.info ("Starting awsEKS proccesing")
+
 
     if 'attributes.servicename' in df_products.columns:
         df_products.drop(columns=['attributes.servicename'], errors='ignore', inplace=True)
@@ -553,6 +582,7 @@ def parse_eks(df_products, df_terms, client):
 
     df_master_eks = pd.merge(df_products, df_terms, on='sku', how='inner').reset_index(drop=True)
 
+    logging.info("Upload procedure for eks dataframes")
     csv_bytes = df_master_eks.to_csv(index=False).encode('utf-8')
     clean_object_name = "aws_eks_clean.csv"
 
@@ -564,12 +594,15 @@ def parse_eks(df_products, df_terms, client):
         content_type='application/csv'
         )
 
-    
+    logging.info (f"Stored {clean_object_name} with {df_master_eks.shape[0]} rows, and {df_master_eks.shape[1]} cols, in {config.PROVIDERS.get('aws').get('clean_bucket')} Minio bucket")
 
-# Ρυθμίζει όλη την εκτέλεση
+
+
+
+#Ρυθμίζει όλη την εκτέλεση
 def run_aws_pipeline(client):
 
-    # services = ['AmazonEC2.json', 'AmazonS3.json']
+    # services = ['AmazonEC2.json']
     services= ['AmazonEKS.json', 'AmazonVPC.json', 'AmazonRDS.json', 'AmazonS3.json']
     for object_name in services:
 
@@ -577,34 +610,58 @@ def run_aws_pipeline(client):
         logging.info(f"Sucessfuly created {object_name} service dataframes")
 
         if object_name == 'AmazonEKS.json':
+            
             parse_eks(df_terms=df_terms, df_products=df_products, client=client)
             logging.info("Sucessfully parsed eks")
+            logging.info ("-----------------------------------------------------------------------------------")
+
+
         elif object_name == 'AmazonVPC.json':
+            
             parse_vpc(df_products=df_products, df_terms=df_terms, client=client)
-            logging.info("Sucessfully parsed vpc")
+            logging.info("Successfully parsed vpc")
+            logging.info ("------------------------------------------------------------------------------------")
+
+
         elif object_name == 'AmazonRDS.json':
+
             parse_rds(df_products=df_products, df_terms=df_terms, client=client)
-            logging.info("Sucessfully parsed EDS")
+            logging.info("Successfully parsed EDS")
+            logging.info ("-----------------------------------------------------------------------------------")
+
+
         elif object_name == 'AmazonS3.json':
             parse_s3(df_products=df_products, df_terms=df_terms, client=client)
-            logging.info("Sucessfully parsed S3")
+            logging.info("Successfully parsed S3")
+            logging.info ("------------------------------------------------------------------------------------")
 
-    
-    
+
+    logging.info("Amazon web services data cleaning pipeline completed successfully")
+
+
+
+       
+#Καλέι την μέθοδο εκτέλεσης
 def main():
 
-    
     utils.set_up_logger()
-    logging.info ("Starting azure pipeline execution")
+
+    logging.info ("========================================================================================")
+
+    logging.info ("Starting aws pipeline execution")
 
     client = config.create_minio_client()
     logging.info ("Succesfully created client")
 
     if not utils.bucket_creation(client, config.PROVIDERS.get("aws").get("clean_bucket")):
         return
+    logging.info ("------------------------------------------------------------------------------------")
 
+    
 
     run_aws_pipeline(client=client)
+    logging.info ("==========================================================================================")
+
 
 
 
