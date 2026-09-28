@@ -10,12 +10,16 @@ sys.path.append(abs_path)
 import config
 import utils
 import logging
+import time
 
 
 def service_injestion (client):
 
     file_counter = 1
     azure_url = config.PROVIDERS.get("azure").get("url")
+
+    retries = 0
+    max_retries = 3
 
     while azure_url:
         logging.info (f"Fetching page {file_counter} from {azure_url}")
@@ -41,14 +45,26 @@ def service_injestion (client):
                 azure_url = data.get("NextPageLink")
                 file_counter += 1
 
+                retries = 0
+                # To avoid error 429 - rate limit   
+                time.sleep(0.2)
+
             else:
-                logging.error (f"Error during data fetching: {response.status_code}")
-                break
+                logging.error(f"Error during data fetching: {response.status_code}")
+                logging.error(f"Server response details: {response.text}")
+                #If the repsonse is ton valid (200) don't break... wait and try again for 3 times is necessary
+                if retries < max_retries:
+                    retries += 1
+                    logging.info (f"Retrying... ({retries}/{max_retries})")
+                    time.sleep(1)
+                    continue
+                else :
+                    logging.error("Max retries reached. Stopping.")
+                    break
 
         except Exception as e:
             logging.error (f"Connection error: {e}")
-
-
+                    
 
 def main():
 
@@ -76,15 +92,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-#     azure_url = data.get("NextPageLink")
-#     print (azure_url)
-
-#     #Take query params from azure_url
-#     parsed = urlparse(azure_url)
-#     params = parse_qs(parsed.query)
-#     file_counter = params.get("$skip")[0]
-
-
